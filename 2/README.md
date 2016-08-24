@@ -1,6 +1,4 @@
-#Too young,too simple 
-##Spring Boot和Docker
-
+#Too young,too simple （Spring Boot和Docker的比较）
 初想SpringBoot是做Web应用开发的，内嵌Servlet容器，是一种Web容器。Docker是以应用为单元进行封装隔离。他们的关系就好比Openstack的neutron和基于BGP协议的Calico虚拟网络一样，是不同层次的解决方案。（neutron是Iaas层虚拟网络的解决方案，Calico提供了容器层虚拟网络的解决方案。）Spring Boot，从字面上理解，Boot是引导的意思，他帮助Java开发者快速启动一个Web容器，是Java应用容器化的解决方案。Docker是基于LXC的应用容器引擎的应用容器化技术，标准的Docker容器包含软件组件及其依赖 。同时，类似Calico虚拟网络解决方案可以对接Openstack虚拟网络上，我们可以在Docker容器中部署运行Spring Boot应用。
 
 这么看来Spring Boot和Docker目标都是应用容器化，Spring Boot是Java开发者的福音，简化了Java开发部署配置及应用监控等工作。Docker做为应用容器引擎，可以独立于硬件、语言、框架，轻视实现持续集成与部署，快速迭代。从跨平台方面，Java是跨平台语言，Docker也发布了Windows Server 2016的windows容器，所以，这个角度看，Spirng Boot和Docker应用容器化，都可以实现应用只需一次构建即可多个平台运行。他们都是颠覆者，都有点Too young, too simple的感觉。:)
