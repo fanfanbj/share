@@ -9,9 +9,9 @@
 ##SpringBoot，Web容器
 “Java要死了吗”这个问题，随着SpringBoot的出现又一次pending。SpringBoot可以说是近5年来Spring乃至整个Java社区最有影响力的项目之一。SpringCloud更是借着SpringBoot和Cloud Native的东风让整个Java生态系统又一次不甘寂寞，保持着活跃的用户群。
 
-回顾历史，Java做为服务端开发语言一路走来，从最初的Servlet／Jsp，到分布式架构EJB的出现，再到轻量级框架Spring。许多公司开始采用Java做为主流的语言进行企业应用开发。但Java EE使得Spring逐渐变得笨重，大量的XML配置文件存在，繁琐的配置，复杂的远程Debug，及难办的性能监控等问题。这些只是问题的一小部分。
+回顾历史，Java做为服务端开发语言一路走来，从最初的Servlet／Jsp，到分布式架构EJB的出现，再到轻量级框架Spring。许多公司开始采用Java做为主流的语言进行企业应用开发。但Java EE使得Spring逐渐变得笨重，大量的XML配置文件存在，繁琐的配置，复杂的远程Debug，及难办的性能监控等问题。这些却只是问题的一小部分。
 
-“远古时代”时，运行Java程序，我们需要先运行应用服务器如：Tomcat，Weblogic，之后部署应用，应用服务器帮管理应用的生命周期。随着应用高可用及弹性伸缩需求的增加及应用趋于微服务化，大大增加了运维的复杂度。应用服务器这种“远古”模式的Web容器，已经无法满足需求。而SpringBoot的出现，用应用容器取代了传统的Tomcat，Weblogic这样的Web容器。同时，SpringBoot解决了如下问题：
+“远古时代”时，运行Java程序，我们需要先运行应用服务器如：Tomcat，Weblogic，之后部署应用，应用服务器帮管理应用的生命周期。随着应用高可用及弹性伸缩需求的增加及应用趋于微服务化，大大增加了运维的复杂度，应用服务器这种“远古”模式的Web容器，已经无法满足需求。SpringBoot的出现，用应用容器取代了传统的Tomcat，Weblogic这样的Web容器，同时，SpringBoot解决了如下问题：
 
 * SpringBoot使编码变简单。
 * SpringBoot使配置变简单。
