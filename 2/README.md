@@ -1,4 +1,4 @@
-#SpringBoot和Docker的比较
+#SpringBoot邂逅Docker
 ##Too young,too simple
 初想SpringBoot是做Web应用开发的，内嵌Servlet容器，是一种Web容器。Docker是以应用为单元进行封装隔离。他们的关系就好比Openstack的neutron和基于BGP协议的Calico虚拟网络一样，是不同层次的解决方案。（neutron是Iaas层虚拟网络的解决方案，Calico提供了容器层虚拟网络的解决方案。）SpringBoot，从字面上理解，Boot是引导的意思，他帮助Java开发者快速启动一个Web容器，是Java应用容器化的解决方案。Docker是基于LXC的应用容器引擎的应用容器化技术，标准的Docker容器包含软件组件及其依赖 。同时，类似Calico虚拟网络解决方案可以对接Openstack虚拟网络上，我们可以在Docker容器中部署运行SpringBoot应用。
 
