@@ -60,7 +60,7 @@ SpringBoot只需要很少的配置，大部分的时候我们直接使用默认�
 
 个人认为Dockerfile和编排功能的革命性在于他们设计的通用性特质。这点通过对比Cloud Foundry的BuildPacks就能看出来。BuildPacks提供了框架和应用运行时的支持，可以根据用户设置来决定应用的依赖和配置。Buildpacks针对不同语言提供不同的系统BuildPacks。而Dockerfile和编排是独立于语言，框架，环境的安装部署。通过生成客户化镜像，定义服务之间依赖的编排文件及通过ENV或ENVfile定义应用服务配置信息。用此方式可以完成在不同环境安装部署。
 
-下面以SpringCloud为例，完成Docker容器化，并通过Docker-compose发布整个项目。以下是一个SpringCloud的demo应用：
+以SpringCloud为例，看看应用Docker容器化及通过Docker-compose发布整个项目。如下是一个SpringCloud的demo应用：
 ![image](https://github.com/fanfanbj/share/blob/master/2/docker1.png)
 我们可以为每个SpringCloud的服务定义安装部署的Dockerfile文件,并用Docker build生成服务镜像：
 
