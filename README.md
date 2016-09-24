@@ -93,15 +93,15 @@ Docker存储方式提供管理分层镜像和Docker容器自己的可读写层�
 * 有效的使用存储和内存#### 缺点：
 * AUFS 到现在还没有加入内核主线( centos 无法直接使用)
 * AUFS不支持rename系统调用，将失败当执行“copy”和“unlink”
-* 当写入大文件的时候(比如日志或者数据库..)动态mount多目录路径的问题,导致branch越多，查找文件的性能也就越慢。(解决办法:重要数据直接使用 -v 参数挂载到系统盘同时启动1000个一样的容器，数据只从磁盘加载一次，缓存也只从内存加载一次。)
+* 当写入大文件的时候(比如日志或者数据库..)动态mount多目录路径的问题,导致branch越多，查找文件的性能也就越慢。(解决办法:重要数据直接使用 -v 参数挂载到系统盘。同时启动1000个一样的容器，数据只从磁盘加载一次，缓存也只从内存加载一次。)
 
 ## Device mapper
 Device mapper是Linux内核2.6.9后支持的，提供的一种从逻辑设备到物理设备的映射框架机制，在该机制下，用户可以很方便的根据自己的需要制定实现存储资源的管理策略。Docker的Device mapper利用 thin provisioning and snapshotting管理镜像和容器。AUFS和OverlayFS都是文件级存储，而Device mapper是块级存储，所有的操作都是直接对块进行操作，而不是文件。Device mapper驱动会先在块设备上创建一个资源池，然后在资源池上创建一个带有文件系统的基本设备，所有镜像都是这个基本设备的快照，而容器则是镜像的快照。所以在容器里看到文件系统是资源池上基本设备的文件系统的快照，并不有为容器分配空间。当要写入一个新文件时，在容器的镜像内为其分配新的块并写入数据，这个叫用时分配。当要修改已有文件时，再使用CoW为容器快照分配块空间，将要修改的数据复制到在容器快照中新的块里再进行修改。Device mapper 驱动默认会创建一个100G的文件包含镜像和容器。每一个容器被限制在10G大小的卷内，可以自己配置调整。结构如下图所示：
 ![image](https://github.com/fanfanbj/sharing/blob/master/dm_container.jpg)
 
 ###性能分析####优点：1.	Docker的Device mapper默认模式是loop-lvm，性能达不到生产级别要求。在生产级别推荐direct-lvm模式。Direct-lvm模式直接写原块设备，性能好2.	兼容性比较好3.	因为存储为1个文件，减少了inond消耗4.	为了更好的性能，Data和Metadata文件使用高速存储 如：SSD。
-####缺点：1.	每次一个容器写数据都是一个新块，块必须从池中分配，真正写的时候是稀松文件,虽然它的利用率很高，但性能不好，因为额外增加了vfs开销2.	每个容器都有自己的块设备时，它们是真正的磁盘存储，所以当启动1000个容器时，它都会从磁盘加载1000次。消耗内存。启动N个同样的容器，将执行N次复制从磁盘加载到内存中。(解决办法:直接使用 -v 挂载到系统盘)
-3. 默认存储池只有100GB4. 是所有空间是静态值 ## OverlayFS
+####缺点：1.	每次一个容器写数据都是一个新块，块必须从池中分配，真正写的时候是稀松文件,虽然它的利用率很高，但性能不好，因为额外增加了vfs开销2.	每个容器都有自己的块设备时，它们是真正的磁盘存储，所以当启动N个容器时，它都会从磁盘加载N次到内存，消耗内存大。
+4. 默认存储池只有100GB5. 是所有空间是静态值 ## OverlayFS
 
 
 # 参考1.	[Docker storage drivers in Docker.com](https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/)2.	[剖析Docker文件系统：Aufs与Devicemapper](http://www.infoq.com/cn/articles/analysis-of-docker-file-system-aufs-and-devicemapper/)3.	 [Linux 内核中的 Device Mapper 机制](https://www.ibm.com/developerworks/cn/linux/l-devmapper/)4.	[Docker 环境 Storage Pool 用完解决方案：resize-device-mapper](http://segmentfault.com/a/1190000002931564)
