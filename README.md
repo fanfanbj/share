@@ -24,70 +24,75 @@ Docker存储方式提供管理分层镜像和Docker容器自己的可读写层�
 * AUFS* Device mapper* Btrfs* OverlayFS* ZFS
 # 第三部分 存储方式技术方案选择
 ## AUFS
-AUFS（AnotherUnionFS）是一种联合文件系统。所谓 UnionFS 就是把不同物理位置的目录合并 mount 到同一个目录中。UnionFS 的一个最主要的应用是，把一张 CD/DVD 和一个硬盘目录给联合 mount 在一起，然后就可以对这个只读的 CD/DVD 上的文件进行修改（当然，修改的文件存于硬盘上的目录里）。 AUFS 支持为每一个成员目录（类似 Git 的分支）设定只读（readonly）、读写（readwrite）和写出（whiteout-able）权限, 同时 AUFS 里有一个类似分层的概念, 对只读权限的分支可以逻辑上进行增量地修改(不影响只读部分的)。### 基础实验：1.	环境准备ubuntu14.04－3.10.xx内核默认安装了aufs模块(linux主线不支持，如果升级了主线内核会缺乏aufs模块)
-		# lsmod | grep aufs
-		aufs	202783  2152. `/data/dataman`目录结构
-  
-        /data/dataman# tree
-        .
-        ├── aufs
-        ├── dir1
-        │   └── file1
-        └── dir2
-            └── file2
-- `file1`和`file2`的文件内容
+AUFS（AnotherUnionFS）是一种联合文件系统。所谓 UnionFS 就是把不同物理位置的目录合并 mount 到同一个目录中。UnionFS 的一个最主要的应用是，把一张 CD/DVD 和一个硬盘目录给联合 mount 在一起，然后就可以对这个只读的 CD/DVD 上的文件进行修改（当然，修改的文件存于硬盘上的目录里）。 AUFS 支持为每一个成员目录（类似 Git 的分支）设定只读（readonly）、读写（readwrite）和写出（whiteout-able）权限, 同时 AUFS 里有一个类似分层的概念, 对只读权限的分支可以逻辑上进行增量地修改(不影响只读部分的)。### 例子
+运行一个实例应用是删除一个文件`/etc/shadow`，看aufs的结果
 
-        # cat dir1/file1
-        dataman1
-        # cat dir2/file2
-        dataman2
-- 将 `dir1` & `dir2` `mount` 到 `aufs` 目录
+    # docker run centos rm /etc/shadow
+    # ls -la /var/lib/docker/aufs/diff/$(docker ps --no-trunc -lq)/etc
     
-        # mount -t aufs -o br=/data/dataman/dir1=ro:/data/dataman/dir2=rw none /data/dataman/aufs     
-    `mount` 参数说明
-        
-        -o 指定mount传递给文件系统的参数
-        br 指定需要挂载的文件夹，这里包括dir1和dir2
-        ro/rw 指定文件的权限只读和可读写
-        none 这里没有设备，用none表示
-- 再次查看目录结构
+    total 8
+    drwxr-xr-x 2 root root 4096 Sep  2 18:35 .
+    drwxr-xr-x 5 root root 4096 Sep  2 18:35 ..
+    -r--r--r-- 2 root root    0 Sep  2 18:35 .wh.shadow
+### 目录结构
+- 容器挂载点(只有容器运行时才被加载)
 
-        # tree
-        .
-        ├── aufs
-        │   ├── file1
-        │   └── file2
-        ├── dir1
-        │   └── file1
-        └── dir2
-            └── file2
-- 进入 `aufs` 目录测试
+        /var/lib/docker/aufs/mnt/$CONTAINER_ID/
+- 分支(和镜像不同的文件，只读活着读写)
 
-        # cd aufs
-        # echo "test1" > file1
-        -su: file1: Read-only file system
-        # echo "test2" > file2
-- 查看结果
+        /var/lib/docker/aufs/diff/$CONTAINER_OR_IMAGE_ID/
+- 镜像索引表(每个镜像引用镜像名)
+
+        /var/lib/docker/aufs/layers/
         
-        # cat file1
-        dataman1
-        # cat file2
-        test2
-- 如果映射的两个目录文件相同如何处理,在`dir1`创建`file2`，重新`mount`
-        
-        # umount /data/dataman/aufs
-        # cat dir1/file2
-        dataman3
-        # mount -t aufs -o br=/data/dataman/dir1=ro:/data/dataman/dir2=rw none /data/dataman/aufs
-        #echo 
-        # cat  aufs/file2
-        dataman3
-结论若出现有同名文件的情况，则以先挂载的为主，其他的不再挂载。说明Docker镜像为什么采用增量的方式：利用Aufs的特性达到节约空间的目的。 
-### 优点： 
-* AUFS存储方式特点是稳定，大量生产部署及丰富的社区支持。AUFS唯一一个 storage driver 可以实现容器间共享可执行及可共享的运行库, 跑成千上百个拥有相同程序代码或者运行库时时候，AUFS是个相当不错的选择。
-* 具有快速启动，有效的使用存储和内存等特点。* Ubuntu 10.04，Debian6.0, Gentoo Live CD 默认已经支持* Docker 第一版支持### 缺点：
+### 其他
+#### AUFS 文件系统可使用的磁盘空间大小
+    # df -h /var/lib/docker/
+    
+    Filesystem      Size  Used Avail Use% Mounted on
+    /dev/vda1        20G  4.0G   15G  22% /
+#### 系统挂载方式
+启动的 Docker
+
+    docker ps
+    
+    CONTAINER ID        IMAGE                        COMMAND                CREATED             STATUS              PORTS                      NAMES
+    3f2e9de1d9d5        mesos/bamboo:v0.1c           "/usr/bin/bamboo-hap   5 days ago          Up 5 days                                      mesos-20150825-162813-1248613158-5050-1-S0.88c909bc-6301-423a-8283-5456435f12d3
+    dc9a7b000300        mesos/nginx:base             "/bin/sh -c nginx"     7 days ago          Up 7 days           0.0.0.0:31967->80/tcp      mesos-20150825-162813-1248613158-5050-1-S0.42667cb2-1134-4b1a-b11d-3c565d4de418
+    1b466b5ad049        mesos/marathon:omega.v0.1    "/usr/bin/dataman_ma   7 days ago          Up 16 hours                                    dataman-marathon
+    0a01eb99c9e7        mesos/nginx:base             "/bin/sh -c nginx"     7 days ago          Up 7 days           0.0.0.0:31587->80/tcp      mesos-20150825-162813-1248613158-5050-1-S0.4f525828-1217-4b3d-a169-bc0eb901eef1
+    c2fb2e8bd482        mesos/dns:v0.1c              "/usr/bin/dataman_me   7 days ago          Up 7 days                                      mesos-20150825-162813-1248613158-5050-1-S0.82d500eb-c3f0-4a00-9f7b-767260d1ee9a
+    df102527214d        mesos/zookeeper:omega.v0.1   "/data/run/dataman_z   8 days ago          Up 8 days                                      dataman-zookeeper
+    b076a43693c1        mesos/slave:omega.v0.1       "/usr/sbin/mesos-sla   8 days ago          Up 8 days                                      dataman-slave
+    e32e9fc9a788        mesos/master:omega.v0.1      "/usr/sbin/mesos-mas   8 days ago          Up 8 days                                      dataman-master
+    c8454c90664e        shadowsocks_server           "/usr/local/bin/ssse   9 days ago          Up 9 days           0.0.0.0:57980->57980/tcp   shadowsocks
+    6dcd5bd46348        registry:v0.1                "docker-registry"      9 days ago          Up 9 days           0.0.0.0:5000->5000/tcp     dataman-registry
+对照系统挂载点
+
+    grep aufs /proc/mounts
+    
+    /dev/mapper/ubuntu--vg-root /var/lib/docker/aufs ext4 rw,relatime,errors=remount-ro,data=ordered 0 0
+    none /var/lib/docker/aufs/mnt/6dcd5bd463482edf33dc1b0324cf2ba4511c038350e745b195065522edbffb48 aufs rw,relatime,si=d9c018051ec07f56,dio,dirperm1 0 0
+    none /var/lib/docker/aufs/mnt/c8454c90664e9a2a2abbccbe31a588a1f4a5835b5741a8913df68a9e27783170 aufs rw,relatime,si=d9c018051ba00f56,dio,dirperm1 0 0
+    none /var/lib/docker/aufs/mnt/e32e9fc9a788e73fc7efc0111d7e02e538830234377d09b54ffc67363b408fca aufs rw,relatime,si=d9c018051b336f56,dio,dirperm1 0 0
+    none /var/lib/docker/aufs/mnt/b076a43693c1d5899cda7ef8244f3d7bc1d102179bc6f5cd295f2d70307e2c24 aufs rw,relatime,si=d9c018051bfecf56,dio,dirperm1 0 0
+    none /var/lib/docker/aufs/mnt/df102527214d5886505889b74c07fda5d10b10a4b46c6dab3669dcbf095b4154 aufs rw,relatime,si=d9c01807933e1f56,dio,dirperm1 0 0
+    none /var/lib/docker/aufs/mnt/c2fb2e8bd4822234633d6fd813bf9b24f9658d8d97319b1180cb119ca5ba654c aufs rw,relatime,si=d9c01806c735ff56,dio,dirperm1 0 0
+    none /var/lib/docker/aufs/mnt/0a01eb99c9e702ebf82f30ad351d5a5a283326388cd41978cab3f5c5b7528d94 aufs rw,relatime,si=d9c018051bfebf56,dio,dirperm1 0 0
+    none /var/lib/docker/aufs/mnt/1b466b5ad049d6a1747d837482264e66a87871658c1738dfd8cac80b7ddcf146 aufs rw,relatime,si=d9c018052b2b1f56,dio,dirperm1 0 0
+    none /var/lib/docker/aufs/mnt/dc9a7b000300a36c170e4e6ce77b5aac1069b2c38f424142045a5ae418164241 aufs rw,relatime,si=d9c01806d9ddff56,dio,dirperm1 0 0
+    none /var/lib/docker/aufs/mnt/3f2e9de1d9d51919e1b6505fd7d3f11452c5f00f17816b61e6f6e97c6648b1ab aufs rw,relatime,si=d9c01806c708ff56,dio,dirperm1 0 0
+### 性能分析
+#### 优点： 
+* Docker 第一版支持, 性能稳定，并且有大量生产部署及丰富的社区支持
+* AUFS mount() 方法很快，所以创建容器也很快。
+* 读写访问都具有本机效率(一旦找到后)
+* 顺序读写和随机读写的性能大于kvm
+* 有效的使用存储和内存#### 缺点：
 * AUFS 到现在还没有加入内核主线( centos 无法直接使用)
-* AUFS不支持rename系统调用，将失败当执行“copy”和“unlink”
+* AUFS不支持rename系统调用，将失败当执行“copy”和“unlink”
+* 当写入大文件的时候(比如日志或者数据库..)动态mount多目录路径的问题,导致branch越多，查找文件的性能也就越慢。(解决办法:重要数据直接使用 -v 参数挂载到系统盘同时启动1000个一样的容器，数据只从磁盘加载一次，缓存也只从内存加载一次。)
+
 ## Device mapper
  ## Btrfs
  ## OverlayFS
