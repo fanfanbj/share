@@ -23,4 +23,9 @@ WAS Server标准日志文件startServer.log和native_stderr.log没有更加详�
 Docker存储方式提供管理分层镜像和Docker容器自己的可读写层的具体实现。最初Docker仅能在支持AUFS文件系统的ubuntu发行版上运行，但是由于AUFS未能加入Linux内核，为了寻求兼容性、扩展性，Docker在内部通过graphdriver机制这种可扩展的方式来实现对不同文件系统的支持。Docker有如下几种不同的drivers：
 * AUFS* Device mapper* Btrfs* OverlayFS* ZFS
 # 第三部分 几种存储方式详细介绍
+## AUFS
+## Device mapper
+ ## Btrfs
+ ## OverlayFS
+
 
