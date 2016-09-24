@@ -100,7 +100,8 @@ Docker存储方式提供管理分层镜像和Docker容器自己的可读写层�
 ![image](https://github.com/fanfanbj/sharing/blob/master/dm_container.jpg)
 
 ###性能分析####优点：1.	Docker的Device mapper默认模式是loop-lvm，性能达不到生产级别要求。在生产级别推荐direct-lvm模式。Direct-lvm模式直接写原块设备，性能好2.	兼容性比较好3.	因为存储为1个文件，减少了inond消耗4.	为了更好的性能，Data和Metadata文件使用高速存储 如：SSD。
-####缺点：1.	每次一个容器写数据都是一个新块，块必须从池中分配，真正写的时候是稀松文件,虽然它的利用率很高，但性能不好，因为额外增加了vfs开销2.	每个容器都有自己的块设备时，它们是真正的磁盘存储，所以当启动1000个容器时，它都会从磁盘加载1000次。消耗内存。启动N个同样的容器，将执行N次复制从磁盘加载到内存中。(解决办法:直接使用 -v 挂载到系统盘) ## OverlayFS
+####缺点：1.	每次一个容器写数据都是一个新块，块必须从池中分配，真正写的时候是稀松文件,虽然它的利用率很高，但性能不好，因为额外增加了vfs开销2.	每个容器都有自己的块设备时，它们是真正的磁盘存储，所以当启动1000个容器时，它都会从磁盘加载1000次。消耗内存。启动N个同样的容器，将执行N次复制从磁盘加载到内存中。(解决办法:直接使用 -v 挂载到系统盘)
+3. 默认存储池只有100GB4. 是所有空间是静态值 ## OverlayFS
 
 
 # 参考1.	[Docker storage drivers in Docker.com](https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/)2.	[剖析Docker文件系统：Aufs与Devicemapper](http://www.infoq.com/cn/articles/analysis-of-docker-file-system-aufs-and-devicemapper/)3.	 [Linux 内核中的 Device Mapper 机制](https://www.ibm.com/developerworks/cn/linux/l-devmapper/)4.	[Docker 环境 Storage Pool 用完解决方案：resize-device-mapper](http://segmentfault.com/a/1190000002931564)
