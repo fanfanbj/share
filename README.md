@@ -83,9 +83,9 @@ Docker存储方式提供管理分层镜像和Docker容器自己的可读写层�
         # cat  aufs/file2
         dataman3
 结论若出现有同名文件的情况，则以先挂载的为主，其他的不再挂载。说明Docker镜像为什么采用增量的方式：利用Aufs的特性达到节约空间的目的。 
-优点： 
+### 优点： 
 * AUFS存储方式特点是稳定，大量生产部署及丰富的社区支持。AUFS唯一一个 storage driver 可以实现容器间共享可执行及可共享的运行库, 跑成千上百个拥有相同程序代码或者运行库时时候，AUFS是个相当不错的选择。
-* 具有快速启动，有效的使用存储和内存等特点。* Ubuntu 10.04，Debian6.0, Gentoo Live CD 默认已经支持* Docker 第一版支持缺点：
+* 具有快速启动，有效的使用存储和内存等特点。* Ubuntu 10.04，Debian6.0, Gentoo Live CD 默认已经支持* Docker 第一版支持### 缺点：
 * AUFS 到现在还没有加入内核主线( centos 无法直接使用)
 * AUFS不支持rename系统调用，将失败当执行“copy”和“unlink”
 ## Device mapper
