@@ -24,7 +24,9 @@ Docker存储方式提供管理分层镜像和Docker容器自己的可读写层�
 * AUFS* Device mapper* Btrfs* OverlayFS* ZFS
 # 第三部分 方案选择
 ## AUFS
-AUFS（AnotherUnionFS）是一种联合文件系统。所谓 UnionFS 就是把不同物理位置的目录合并 mount 到同一个目录中。UnionFS 的一个最主要的应用是，把一张 CD/DVD 和一个硬盘目录给联合 mount 在一起，然后就可以对这个只读的 CD/DVD 上的文件进行修改（当然，修改的文件存于硬盘上的目录里）。 AUFS 支持为每一个成员目录（类似 Git 的分支）设定只读（readonly）、读写（readwrite）和写出（whiteout-able）权限, 同时 AUFS 里有一个类似分层的概念, 对只读权限的分支可以逻辑上进行增量地修改(不影响只读部分的)。### 例子
+AUFS（AnotherUnionFS）是一种联合文件系统。所谓 UnionFS 就是把不同物理位置的目录合并 mount 到同一个目录中。UnionFS 的一个最主要的应用是，把一张 CD/DVD 和一个硬盘目录给联合 mount 在一起，然后就可以对这个只读的 CD/DVD 上的文件进行修改（当然，修改的文件存于硬盘上的目录里）。 AUFS 支持为每一个成员目录（类似 Git 的分支）设定只读（readonly）、读写（readwrite）和写出（whiteout-able）权限, 同时 AUFS 里有一个类似分层的概念, 对只读权限的分支可以逻辑上进行增量地修改(不影响只读部分的)。
+![image](https://github.com/fanfanbj/sharing/blob/master/aufs_layers.jpg)
+### 例子
 运行一个实例应用是删除一个文件`/etc/shadow`，看aufs的结果
 
     # docker run centos rm /etc/shadow
@@ -94,7 +96,7 @@ Docker存储方式提供管理分层镜像和Docker容器自己的可读写层�
 * 当写入大文件的时候(比如日志或者数据库..)动态mount多目录路径的问题,导致branch越多，查找文件的性能也就越慢。(解决办法:重要数据直接使用 -v 参数挂载到系统盘同时启动1000个一样的容器，数据只从磁盘加载一次，缓存也只从内存加载一次。)
 
 ## Device mapper
- ## Btrfs
+
  ## OverlayFS
 
 
