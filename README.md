@@ -22,7 +22,7 @@ WAS Server标准日志文件startServer.log和native_stderr.log没有更加详�
 
 Docker存储方式提供管理分层镜像和Docker容器自己的可读写层的具体实现。最初Docker仅能在支持AUFS文件系统的ubuntu发行版上运行，但是由于AUFS未能加入Linux内核，为了寻求兼容性、扩展性，Docker在内部通过graphdriver机制这种可扩展的方式来实现对不同文件系统的支持。Docker有如下几种不同的drivers：
 * AUFS* Device mapper* Btrfs* OverlayFS* ZFS
-# 第三部分 方案选择
+# 第三部分 方案分析
 ## AUFS
 AUFS（AnotherUnionFS）是一种联合文件系统。所谓 UnionFS 就是把不同物理位置的目录合并 mount 到同一个目录中。UnionFS 的一个最主要的应用是，把一张 CD/DVD 和一个硬盘目录给联合 mount 在一起，然后就可以对这个只读的 CD/DVD 上的文件进行修改（当然，修改的文件存于硬盘上的目录里）。 AUFS 支持为每一个成员目录（类似 Git 的分支）设定只读（readonly）、读写（readwrite）和写出（whiteout-able）权限, 同时 AUFS 里有一个类似分层的概念, 对只读权限的分支可以逻辑上进行增量地修改(不影响只读部分的)。
 ![image](https://github.com/fanfanbj/sharing/blob/master/aufs_layers.jpg)
