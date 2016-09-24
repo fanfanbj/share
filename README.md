@@ -102,7 +102,12 @@ Docker存储方式提供管理分层镜像和Docker容器自己的可读写层�
 ###性能分析####优点：1.	Docker的Device mapper默认模式是loop-lvm，性能达不到生产级别要求。在生产级别推荐direct-lvm模式。Direct-lvm模式直接写原块设备，性能好2.	兼容性比较好3.	因为存储为1个文件，减少了inond消耗4.	为了更好的性能，Data和Metadata文件使用高速存储 如：SSD。
 ####缺点：1.	每次一个容器写数据都是一个新块，块必须从池中分配，真正写的时候是稀松文件,虽然它的利用率很高，但性能不好，因为额外增加了vfs开销2.	每个容器都有自己的块设备时，它们是真正的磁盘存储，所以当启动N个容器时，它都会从磁盘加载N次到内存，消耗内存大。
 4. 默认存储池只有100GB5. 是所有空间是静态值 ## OverlayFS
+Overlay是Linux内核3.18后支持的，也是一种Union FS，和AUFS的多层不同的是Overlay只有两层：一个upper文件系统和一个lower文件系统，分别代表Docker的镜像层和容器层。当需要修改一个文件时，使用CoW将文件从只读的lower复制到可写的upper进行修改，结果也保存在upper层。在Docker中，底下的只读层就是image，可写层就是Container。结构如下图所示：
 
+![image](https://github.com/fanfanbj/sharing/blob/master/overlay_constructs.jpg)
+
+###性能分析
+####优点：1.	设计简单，速度快，比AUFS和Device mapper速度快。在某些情况下，也比Btrfs速度快。是Docker存储方式选择的未来。2.	OverlayFS支持页缓冲共享，多个容器访问同一个文件能共享一个页缓冲，以此提高内存使用率。3.	从kernel3.18进入主流Linux内核。4.	因为OverlayFS只有两层，不是多层，所以OverlayFS “copy-up”操作快于AUFS。以此可以减少操作延时。####缺点：1.	OverlayFS消耗inode，随着镜像和容器增加，inode会遇到瓶颈。Overlay2能解决这个问题。2.	在Overlay下，为了解决inode问题，可以考虑将/var/lib/docker建在单独的文件系统上，或者增加inode设置。
 
 # 参考1.	[Docker storage drivers in Docker.com](https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/)2.	[剖析Docker文件系统：Aufs与Devicemapper](http://www.infoq.com/cn/articles/analysis-of-docker-file-system-aufs-and-devicemapper/)3.	 [Linux 内核中的 Device Mapper 机制](https://www.ibm.com/developerworks/cn/linux/l-devmapper/)4.	[Docker 环境 Storage Pool 用完解决方案：resize-device-mapper](http://segmentfault.com/a/1190000002931564)
 5. 	[Docker五种存储驱动原理及应用场景和性能测试对比](http://dockone.io/article/1513)
