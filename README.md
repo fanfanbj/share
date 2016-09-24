@@ -92,7 +92,7 @@ Docker存储方式提供管理分层镜像和Docker容器自己的可读写层�
 * 顺序读写和随机读写的性能大于kvm
 * 有效的使用存储和内存#### 缺点：
 * AUFS 到现在还没有加入内核主线( centos 无法直接使用)
-* AUFS不支持rename系统调用，将失败当执行“copy”和“unlink”
+* 不支持rename系统调用，当执行“copy”和“unlink”时，将导致失败。
 * 当写入大文件的时候(比如日志或者数据库..)动态mount多目录路径的问题,导致branch越多，查找文件的性能也就越慢。(解决办法:重要数据直接使用 -v 参数挂载到系统盘。同时启动1000个一样的容器，数据只从磁盘加载一次，缓存也只从内存加载一次。)
 
 ## Device mapper
@@ -108,6 +108,6 @@ Overlay是Linux内核3.18后支持的，也是一种Union FS，和AUFS的多层�
 
 ###性能分析
 ####优点：1.	设计简单，速度快，比AUFS和Device mapper速度快。在某些情况下，也比Btrfs速度快。是Docker存储方式选择的未来。2.	OverlayFS支持页缓冲共享，多个容器访问同一个文件能共享一个页缓冲，以此提高内存使用率。3.	从kernel3.18进入主流Linux内核。4.	因为OverlayFS只有两层，不是多层，所以OverlayFS “copy-up”操作快于AUFS。以此可以减少操作延时。
-####缺点：1.	OverlayFS消耗inode，随着镜像和容器增加，inode会遇到瓶颈。Overlay2能解决这个问题。2.	在Overlay下，为了解决inode问题，可以考虑将/var/lib/docker建在单独的文件系统上，或者增加inode设置。3.	有兼容性问题。tpen(2)只完成部分POSIX标准，OverlayFS的某些操作不符合POSIX标准。例如： 调用fd1=open("foo", O_RDONLY) ，然后调用fd2=open("foo", O_RDWR) 应用期望fd1 和fd2是同一个文件。然后由于复制操作发生在第一个open(2)操作后，所以认为是两个不同的文件。4.	AUFS不支持rename系统调用，将失败当执行“copy”和“unlink”
+####缺点：1.	OverlayFS消耗inode，随着镜像和容器增加，inode会遇到瓶颈。Overlay2能解决这个问题。2.	在Overlay下，为了解决inode问题，可以考虑将/var/lib/docker建在单独的文件系统上，或者增加inode设置。3.	有兼容性问题。tpen(2)只完成部分POSIX标准，OverlayFS的某些操作不符合POSIX标准。例如： 调用fd1=open("foo", O_RDONLY) ，然后调用fd2=open("foo", O_RDWR) 应用期望fd1 和fd2是同一个文件。然后由于复制操作发生在第一个open(2)操作后，所以认为是两个不同的文件。4.	不支持rename系统调用，当执行“copy”和“unlink”时，将导致失败。
 # 参考1.	[Docker storage drivers in Docker.com](https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/)2.	[剖析Docker文件系统：Aufs与Devicemapper](http://www.infoq.com/cn/articles/analysis-of-docker-file-system-aufs-and-devicemapper/)3.	 [Linux 内核中的 Device Mapper 机制](https://www.ibm.com/developerworks/cn/linux/l-devmapper/)4.	[Docker 环境 Storage Pool 用完解决方案：resize-device-mapper](http://segmentfault.com/a/1190000002931564)
 5. 	[Docker五种存储驱动原理及应用场景和性能测试对比](http://dockone.io/article/1513)
