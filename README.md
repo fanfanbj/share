@@ -89,7 +89,11 @@ Docker存储方式提供管理分层镜像和Docker容器自己的可读写层�
 ### 分析
 1.	虽然AUFS是Docker 第一版支持的存储方式，但到现在还没有加入内核主线( centos 无法直接使用)2.	从原理分析看，AUFS mount()方法很快，所以创建容器很快；读写访问都具有本机效率；顺序读写和随机读写的性能大于kvm；并且Docker的AUFS可以有效的使用存储和内存 。3.	AUFS性能稳定，并且有大量生产部署及丰富的社区支持4.	不支持rename系统调用，执行“copy”和“unlink”时，会导致失败。5.	当写入大文件的时候(比如日志或者数据库等)动态mount多目录路径的问题,导致branch越多，查找文件的性能也就越慢。(解决办法:重要数据直接使用 -v 参数挂载。)
 ## Device mapper
-Device mapper是Linux内核2.6.9后支持的，提供的一种从逻辑设备到物理设备的映射框架机制，在该机制下，用户可以很方便的根据自己的需要制定实现存储资源的管理策略。Docker的Device mapper利用 thin provisioning and snapshotting管理镜像和容器。AUFS和OverlayFS都是文件级存储，而Device mapper是块级存储，所有的操作都是直接对块进行操作，而不是文件。Device mapper驱动会先在块设备上创建一个资源池，然后在资源池上创建一个带有文件系统的基本设备，所有镜像都是这个基本设备的快照，而容器则是镜像的快照。所以在容器里看到文件系统是资源池上基本设备的文件系统的快照，并不有为容器分配空间。当要写入一个新文件时，在容器的镜像内为其分配新的块并写入数据，这个叫用时分配。当要修改已有文件时，再使用CoW为容器快照分配块空间，将要修改的数据复制到在容器快照中新的块里再进行修改。Device mapper 驱动默认会创建一个100G的文件包含镜像和容器。每一个容器被限制在10G大小的卷内，可以自己配置调整。结构如下图所示：
+Device mapper是Linux内核2.6.9后支持的，提供的一种从逻辑设备到物理设备的映射框架机制，在该机制下，用户可以很方便的根据自己的需要制定实现存储资源的管理策略。Docker的Device mapper利用 Thin provisioning snapshot管理镜像和容器。
+###Thin-provisioning SnapshotThin-provisioning Snapshot结合Thin-Provisioning和Snapshot两种技术，允许多个虚拟设备同时挂载到一个数据卷以达到数据共享的目的。Thin-Provisioning Snapshot的特点如下：
+1.	可以将不同的snaptshot挂载到同一个the origin上，节省了磁盘空间。2.	当多个Snapshot挂载到了同一个the origin上，并在the origin上发生写操作时，将会触发COW操作。这样不会降低效率。3.	Thin-Provisioning Snapshot支持递归操作，即一个Snapshot可以作为另一个Snapshot的the origin，且没有深度限制。
+4. 在Snapshot上可以创建一个逻辑卷，这个逻辑卷在实际写操作（COW，Snapshot写操作）发生之前是不占用磁盘空间的。
+AUFS和OverlayFS都是文件级存储，而Device mapper是块级存储，所有的操作都是直接对块进行操作，而不是文件。Device mapper驱动会先在块设备上创建一个资源池，然后在资源池上创建一个带有文件系统的基本设备，所有镜像都是这个基本设备的快照，而容器则是镜像的快照。所以在容器里看到文件系统是资源池上基本设备的文件系统的快照，并没有为容器分配空间。当要写入一个新文件时，在容器的镜像内为其分配新的块并写入数据，这个叫用时分配。当要修改已有文件时，再使用CoW为容器快照分配块空间，将要修改的数据复制到在容器快照中新的块里再进行修改。Device mapper 驱动默认会创建一个100G的文件包含镜像和容器。每一个容器被限制在10G大小的卷内，可以自己配置调整。结构如下图所示：
 ![image](https://github.com/fanfanbj/sharing/blob/master/dm_container.jpg)
 
 ###分析1.	Device mapper文件系统兼容性比较好，并且存储为一个文件，减少了inode消耗。2.	每次一个容器写数据都是一个新块，块必须从池中分配，真正写的时候是稀松文件,虽然它的利用率很高，但性能不好，因为额外增加了vfs开销。3.	每个容器都有自己的块设备时，它们是真正的磁盘存储，所以当启动N个容器时，它都会从磁盘加载N次到内存中，消耗内存大。 4. Docker的Device mapper默认模式是loop-lvm，性能达不到生产要求。在生产环境推荐direct-lvm模式直接写原块设备，性能好。 ## OverlayFS
