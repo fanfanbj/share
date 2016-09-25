@@ -90,7 +90,7 @@ Docker存储方式提供管理分层镜像和Docker容器自己的可读写层�
 1.	虽然AUFS是Docker 第一版支持的存储方式，但到现在还没有加入内核主线( centos 无法直接使用)2.	从原理分析看，AUFS mount()方法很快，所以创建容器很快；读写访问都具有本机效率；顺序读写和随机读写的性能大于kvm；并且Docker的AUFS可以有效的使用存储和内存 。3.	AUFS性能稳定，并且有大量生产部署及丰富的社区支持4.	不支持rename系统调用，执行“copy”和“unlink”时，会导致失败。5.	当写入大文件的时候(比如日志或者数据库等)动态mount多目录路径的问题,导致branch越多，查找文件的性能也就越慢。(解决办法:重要数据直接使用 -v 参数挂载。)
 ## Device mapper
 Device mapper是Linux内核2.6.9后支持的，提供的一种从逻辑设备到物理设备的映射框架机制，在该机制下，用户可以很方便的根据自己的需要制定实现存储资源的管理策略。Docker的Device mapper利用 Thin provisioning snapshot管理镜像和容器。
-###Thin-provisioning SnapshotThin-provisioning Snapshot结合Thin-Provisioning和Snapshot两种技术，允许多个虚拟设备同时挂载到一个数据卷以达到数据共享的目的。Thin-Provisioning Snapshot的特点如下：
+###Thin-provisioning SnapshotSnapshot是Lvm提供的一种特性，它可以在不中断服务运行的情况下为the origin（original device）创建一个虚拟快照(Snapshot)。Thin-Provisioning是一项利用虚拟化方法减少物理存储部署的技术。Thin-provisioning Snapshot是结合Thin-Provisioning和Snapshoting两种技术，允许多个虚拟设备同时挂载到一个数据卷以达到数据共享的目的。Thin-Provisioning Snapshot的特点如下：
 1.	可以将不同的snaptshot挂载到同一个the origin上，节省了磁盘空间。2.	当多个Snapshot挂载到了同一个the origin上，并在the origin上发生写操作时，将会触发COW操作。这样不会降低效率。3.	Thin-Provisioning Snapshot支持递归操作，即一个Snapshot可以作为另一个Snapshot的the origin，且没有深度限制。
 4. 在Snapshot上可以创建一个逻辑卷，这个逻辑卷在实际写操作（COW，Snapshot写操作）发生之前是不占用磁盘空间的。
 
