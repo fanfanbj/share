@@ -98,7 +98,7 @@ Overlay是Linux内核3.18后支持的，也是一种Union FS，和AUFS的多层�
 ![image](https://github.com/fanfanbj/sharing/blob/master/overlay_constructs.jpg)
 
 ###分析
-1.	从kernel3.18进入主流Linux内核。设计简单，速度快，比AUFS和Device mapper速度快。在某些情况下，也比Btrfs速度快。是Docker存储方式选择的未来。因为OverlayFS只有两层，不是多层，所以OverlayFS “copy-up”操作快于AUFS。以此可以减少操作延时。2.	OverlayFS支持页缓存共享，多个容器访问同一个文件能共享一个页缓存，以此提高内存使用率。3.	OverlayFS消耗inode，随着镜像和容器增加，inode会遇到瓶颈。Overlay2能解决这个问题。4.	在Overlay下，为了解决inode问题，可以考虑将/var/lib/docker挂在单独的文件系统上，或者增加系统inode设置。5.	有兼容性问题。pen(2)只完成部分POSIX标准，OverlayFS的某些操作不符合POSIX标准。例如： 调用fd1=open("foo", O_RDONLY) ，然后调用fd2=open("foo", O_RDWR) 应用期望fd1 和fd2是同一个文件。然后由于复制操作发生在第一个open(2)操作后，所以认为是两个不同的文件。6.	不支持rename系统调用，执行“copy”和“unlink”时，将导致失败。
+1.	从kernel3.18进入主流Linux内核。设计简单，速度快，比AUFS和Device mapper速度快。在某些情况下，也比Btrfs速度快。是Docker存储方式选择的未来。因为OverlayFS只有两层，不是多层，所以OverlayFS “copy-up”操作快于AUFS。以此可以减少操作延时。2.	OverlayFS支持页缓存共享，多个容器访问同一个文件能共享一个页缓存，以此提高内存使用率。3.	OverlayFS消耗inode，随着镜像和容器增加，inode会遇到瓶颈。Overlay2能解决这个问题。4.	在Overlay下，为了解决inode问题，可以考虑将/var/lib/docker挂在单独的文件系统上，或者增加系统inode设置。5.	有兼容性问题。open(2)只完成部分POSIX标准，OverlayFS的某些操作不符合POSIX标准。例如： 调用fd1=open("foo", O_RDONLY) ，然后调用fd2=open("foo", O_RDWR) 应用期望fd1 和fd2是同一个文件。然后由于复制操作发生在第一个open(2)操作后，所以认为是两个不同的文件。6.	不支持rename系统调用，执行“copy”和“unlink”时，将导致失败。
 ## Btrfs
 Btrfs被称为下一代写时复制文件系统，并入Linux内核，也是文件级级存储，但可以像Device mapper一直接操作底层设备。Btrfs把文件系统的一部分配置为一个完整的子文件系统，称之为subvolume 。那么采用 subvolume，一个大的文件系统可以被划分为多个子文件系统，这些子文件系统共享底层的设备空间，在需要磁盘空间时便从底层设备中分配，类似应用程序调用 malloc()分配内存一样。为了灵活利用设备空间，Btrfs 将磁盘空间划分为多个chunk 。每个chunk可以使用不同的磁盘空间分配策略。比如某些chunk只存放metadata，某些chunk只存放数据。这种模型有很多优点，比如Btrfs支持动态添加设备。用户在系统中增加新的磁盘之后，可以使用Btrfs的命令将该设备添加到文件系统中。Btrfs把一个大的文件系统当成一个资源池，配置成多个完整的子文件系统，还可以往资源池里加新的子文件系统，而基础镜像则是子文件系统的快照，每个子镜像和容器都有自己的快照，这些快照则都是subvolume的快照。
 
