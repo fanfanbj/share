@@ -1,4 +1,4 @@
-#Docker存储方式实践分享
+#Docker存储方式问题诊断及研究分享
 # 第一部分 问题诊断事情从一次实施项目说起，我们需要帮助客户将他们的应用容器化并在数人云平台上发布此应用。客户的应用是传统WAS应用。应用是通过WAS console界面进行手工部署，暂时无法通过Dockerfile进行自动化应用部署，最后的镜像是通过Docker commit完成。镜像启动执行命令是startwas.sh,并通过tail将应用日志输出到标准输出。启动容器，WAS Server启动失败，错误日志如下：
 ![image](https://github.com/fanfanbj/sharing/blob/master/Picture1.jpg)
 
@@ -115,7 +115,7 @@ Overlay是Linux内核3.18后支持的，也是一种Union FS，和AUFS的多层�
 ![image](https://github.com/fanfanbj/sharing/blob/master/btfs_container_layer.jpg)
 
 ###分析
-1.	Btrfs是替换Device mapper的下一代文件系统， 很多功能还在开发阶段，还没有发布正式版本，相比EXT4或其它更成熟的文件系统，它在技术方面的优势包括丰富的特征，如：支持子卷、快照、文件系统内置压缩和内置RAID支持等。2.	不支持页缓存共享，N个容器访问相同的文件需要缓存N次。不适合高密度容器场景。3.	当前Btrfs版本使用“small writes”,导致性能问题，所以，使用Btrfs要使用Btrfs原生命令btrfs filesys show替代df4.	Btrfs使用“journaling”写数据到磁盘，这将影响顺序写的性能。5.	Btrfs文件系统会有碎片，导致性能问题。当前Btrfs版本，能通过mount时指定autodefrag 检测随机写和碎片整理。## ZFS
+1.	Btrfs是替换Device mapper的下一代文件系统， 很多功能还在开发阶段，还没有发布正式版本，相比EXT4或其它更成熟的文件系统，它在技术方面的优势包括丰富的特征，如：支持子卷、快照、文件系统内置压缩和内置RAID支持等。2.	不支持页缓存共享，N个容器访问相同的文件需要缓存N次。不适合高密度容器场景。3.	当前Btrfs版本使用“small writes”,导致性能问题。并且，使用Btrfs要使用Btrfs原生命令btrfs filesys show替代df4.	Btrfs使用“journaling”写数据到磁盘，这将影响顺序写的性能。5.	Btrfs文件系统会有碎片，导致性能问题。当前Btrfs版本，能通过mount时指定autodefrag 做检测随机写和碎片整理。## ZFS
 ZFS 文件系统是一个革命性的全新的文件系统，它从根本上改变了文件系统的管理方式，ZFS 完全抛弃了“卷管理”，不再创建虚拟的卷，而是把所有设备集中到一个存储池中来进行管理，用“存储池”的概念来管理物理存储空间。过去，文件系统都是构建在物理设备之上的。为了管理这些物理设备，并为数据提供冗余，“卷管理”的概念提供了一个单设备的映像。而ZFS创建在虚拟的，被称为“zpools”的存储池之上。每个存储池由若干虚拟设备（virtual devices，vdevs）组成。这些虚拟设备可以是原始磁盘，也可能是一个RAID1镜像设备，或是非标准RAID等级的多磁盘组。于是zpool上的文件系统可以使用这些虚拟设备的总存储容量。Docker的ZFS利用snapshots和clones，它们是ZFS的实时拷贝，snapshots是只读的，clones是读写的，clones从snapshot创建。
 下面看一下在Docker里ZFS的使用。首先从zpool里分配一个ZFS文件系统给镜像的基础层，而其他镜像层则是这个ZFS文件系统快照的克隆，快照是只读的，而克隆是可写的，当容器启动时则在镜像的最顶层生成一个可写层。如下图所示：
 ![image](https://github.com/fanfanbj/sharing/blob/master/zfs_zpool.jpg)
