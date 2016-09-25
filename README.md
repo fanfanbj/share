@@ -11,7 +11,7 @@ WAS Server标准日志文件startServer.log和native_stderr.log都没有更加�
 ![image](https://github.com/fanfanbj/sharing/blob/master/Picture3.jpg)
 
 到现在为止，可以初步判断是Docker存储方式(storage drive)在镜像容器分层管理上的问题。
-当前宿主机是Centos7.2，内核3.10.0。查看当前宿主机是Docker1.12.0，存储方式是Overlay，宿主机的文件系统是xfs:
+当前宿主机是Centos7.2，内核3.10.0。并且查看当前宿主机信息是Docker1.12.0，存储方式是Overlay，宿主机的文件系统是xfs:
 
 ![image](https://github.com/fanfanbj/sharing/blob/master/Picture4.jpg)
 
