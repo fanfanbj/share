@@ -25,7 +25,8 @@ Docker存储方式提供管理分层镜像和Docker容器自己的可读写层�
 * AUFS* Device mapper* Btrfs* OverlayFS* ZFS
 # 第三部分 方案分析
 ## AUFS
-AUFS（AnotherUnionFS）是一种联合文件系统。所谓 UnionFS 就是把不同物理位置的目录合并 mount 到同一个目录中。UnionFS 的一个最主要的应用是，把一张 CD/DVD 和一个硬盘目录给联合 mount 在一起，然后就可以对这个只读的 CD/DVD 上的文件进行修改（当然，修改的文件存于硬盘上的目录里）。 AUFS 支持为每一个成员目录（类似 Git 的分支）设定只读（readonly）、读写（readwrite）和写出（whiteout-able）权限, 同时 AUFS 里有一个类似分层的概念, 对只读权限的分支可以逻辑上进行增量地修改(不影响只读部分的)。
+AUFS（AnotherUnionFS）是一种Union FS，是文件级的存储驱动。所谓 UnionFS 就是把不同物理位置的目录合并 mount 到同一个目录中。简单来说就是支持将不同目录挂载到同一个虚拟文件系统下的文件系统。这种文件系统可以一层一层地叠加修改文件。无论底下有多少层都是只读的，只有最上层的文件系统是可写的。当需要修改一个文件时，AUFS创建该文件的一个副本，使用CoW将文件从只读层复制到可写层进行修改，结果也保存在可写层。在Docker中，底下的只读层就是image，可写层就是Container。结构如下图所示：
+
 ![image](https://github.com/fanfanbj/sharing/blob/master/aufs_layers.jpg)
 ### 例子
 运行一个实例应用是删除一个文件`/etc/shadow`，看aufs的结果
@@ -86,37 +87,27 @@ Docker存储方式提供管理分层镜像和Docker容器自己的可读写层�
     none /var/lib/docker/aufs/mnt/dc9a7b000300a36c170e4e6ce77b5aac1069b2c38f424142045a5ae418164241 aufs rw,relatime,si=d9c01806d9ddff56,dio,dirperm1 0 0
     none /var/lib/docker/aufs/mnt/3f2e9de1d9d51919e1b6505fd7d3f11452c5f00f17816b61e6f6e97c6648b1ab aufs rw,relatime,si=d9c01806c708ff56,dio,dirperm1 0 0
 ### 性能分析
-#### 优点： 
-* Docker 第一版支持, 性能稳定，并且有大量生产部署及丰富的社区支持
-* AUFS mount() 方法很快，所以创建容器也很快。
-* 读写访问都具有本机效率(一旦找到后)
-* 顺序读写和随机读写的性能大于kvm
-* 有效的使用存储和内存#### 缺点：
-* AUFS 到现在还没有加入内核主线( centos 无法直接使用)
-* 不支持rename系统调用，当执行“copy”和“unlink”时，将导致失败。
-* 当写入大文件的时候(比如日志或者数据库..)动态mount多目录路径的问题,导致branch越多，查找文件的性能也就越慢。(解决办法:重要数据直接使用 -v 参数挂载到系统盘。同时启动1000个一样的容器，数据只从磁盘加载一次，缓存也只从内存加载一次。)
-
+1.	虽然AUFS是Docker 第一版支持的存储方式，但到现在还没有加入内核主线( centos 无法直接使用)2.	从原理分析看，AUFS mount()方法很快，所以创建容器很快；读写访问都具有本机效率；顺序读写和随机读写的性能大于kvm；并且Docker的AUFS可以有效的使用存储和内存 。3.	AUFS性能稳定，并且有大量生产部署及丰富的社区支持4.	不支持rename系统调用，执行“copy”和“unlink”时，会导致失败。5.	当写入大文件的时候(比如日志或者数据库等)动态mount多目录路径的问题,导致branch越多，查找文件的性能也就越慢。(解决办法:重要数据直接使用 -v 参数挂载。)
 ## Device mapper
 Device mapper是Linux内核2.6.9后支持的，提供的一种从逻辑设备到物理设备的映射框架机制，在该机制下，用户可以很方便的根据自己的需要制定实现存储资源的管理策略。Docker的Device mapper利用 thin provisioning and snapshotting管理镜像和容器。AUFS和OverlayFS都是文件级存储，而Device mapper是块级存储，所有的操作都是直接对块进行操作，而不是文件。Device mapper驱动会先在块设备上创建一个资源池，然后在资源池上创建一个带有文件系统的基本设备，所有镜像都是这个基本设备的快照，而容器则是镜像的快照。所以在容器里看到文件系统是资源池上基本设备的文件系统的快照，并不有为容器分配空间。当要写入一个新文件时，在容器的镜像内为其分配新的块并写入数据，这个叫用时分配。当要修改已有文件时，再使用CoW为容器快照分配块空间，将要修改的数据复制到在容器快照中新的块里再进行修改。Device mapper 驱动默认会创建一个100G的文件包含镜像和容器。每一个容器被限制在10G大小的卷内，可以自己配置调整。结构如下图所示：
 ![image](https://github.com/fanfanbj/sharing/blob/master/dm_container.jpg)
 
-###性能分析####优点：1.	Docker的Device mapper默认模式是loop-lvm，性能达不到生产级别要求。在生产级别推荐direct-lvm模式。Direct-lvm模式直接写原块设备，性能好2.	兼容性比较好3.	因为存储为1个文件，减少了inond消耗4.	为了更好的性能，Data和Metadata文件使用高速存储 如：SSD。
-####缺点：1.	每次一个容器写数据都是一个新块，块必须从池中分配，真正写的时候是稀松文件,虽然它的利用率很高，但性能不好，因为额外增加了vfs开销2.	每个容器都有自己的块设备时，它们是真正的磁盘存储，所以当启动N个容器时，它都会从磁盘加载N次到内存，消耗内存大。
-4. 默认存储池只有100GB5. 是所有空间是静态值 ## OverlayFS
+###性能分析1.	Device mapper文件系统兼容性比较好，并且存储为一个文件，减少了inode消耗。2.	每次一个容器写数据都是一个新块，块必须从池中分配，真正写的时候是稀松文件,虽然它的利用率很高，但性能不好，因为额外增加了vfs开销。3.	每个容器都有自己的块设备时，它们是真正的磁盘存储，所以当启动N个容器时，它都会从磁盘加载N次到内存中，消耗内存大。 4. Docker的Device mapper默认模式是loop-lvm，性能达不到生产要求。在生产环境推荐direct-lvm模式直接写原块设备，性能好。 ## OverlayFS
 Overlay是Linux内核3.18后支持的，也是一种Union FS，和AUFS的多层不同的是Overlay只有两层：一个upper文件系统和一个lower文件系统，分别代表Docker的镜像层和容器层。当需要修改一个文件时，使用CoW将文件从只读的lower复制到可写的upper进行修改，结果也保存在upper层。在Docker中，底下的只读层就是image，可写层就是Container。结构如下图所示：
 
 ![image](https://github.com/fanfanbj/sharing/blob/master/overlay_constructs.jpg)
 
-###性能分析
-####优点：1.	设计简单，速度快，比AUFS和Device mapper速度快。在某些情况下，也比Btrfs速度快。是Docker存储方式选择的未来。2.	OverlayFS支持页缓冲共享，多个容器访问同一个文件能共享一个页缓冲，以此提高内存使用率。3.	从kernel3.18进入主流Linux内核。4.	因为OverlayFS只有两层，不是多层，所以OverlayFS “copy-up”操作快于AUFS。以此可以减少操作延时。
-####缺点：1.	OverlayFS消耗inode，随着镜像和容器增加，inode会遇到瓶颈。Overlay2能解决这个问题。2.	在Overlay下，为了解决inode问题，可以考虑将/var/lib/docker建在单独的文件系统上，或者增加inode设置。3.	有兼容性问题。tpen(2)只完成部分POSIX标准，OverlayFS的某些操作不符合POSIX标准。例如： 调用fd1=open("foo", O_RDONLY) ，然后调用fd2=open("foo", O_RDWR) 应用期望fd1 和fd2是同一个文件。然后由于复制操作发生在第一个open(2)操作后，所以认为是两个不同的文件。4.	不支持rename系统调用，当执行“copy”和“unlink”时，将导致失败。
+###分析
+1.	从kernel3.18进入主流Linux内核。设计简单，速度快，比AUFS和Device mapper速度快。在某些情况下，也比Btrfs速度快。是Docker存储方式选择的未来。因为OverlayFS只有两层，不是多层，所以OverlayFS “copy-up”操作快于AUFS。以此可以减少操作延时。2.	OverlayFS支持页缓存共享，多个容器访问同一个文件能共享一个页缓存，以此提高内存使用率。3.	OverlayFS消耗inode，随着镜像和容器增加，inode会遇到瓶颈。Overlay2能解决这个问题。4.	在Overlay下，为了解决inode问题，可以考虑将/var/lib/docker挂在单独的文件系统上，或者增加系统inode设置。5.	有兼容性问题。tpen(2)只完成部分POSIX标准，OverlayFS的某些操作不符合POSIX标准。例如： 调用fd1=open("foo", O_RDONLY) ，然后调用fd2=open("foo", O_RDWR) 应用期望fd1 和fd2是同一个文件。然后由于复制操作发生在第一个open(2)操作后，所以认为是两个不同的文件。6.	不支持rename系统调用，执行“copy”和“unlink”时，将导致失败。
 ## Btrfs
 Btrfs被称为下一代写时复制文件系统，并入Linux内核，也是文件级级存储，但可以像Device mapper一直接操作底层设备。Btrfs把文件系统的一部分配置为一个完整的子文件系统，称之为subvolume 。那么采用 subvolume，一个大的文件系统可以被划分为多个子文件系统，这些子文件系统共享底层的设备空间，在需要磁盘空间时便从底层设备中分配，类似应用程序调用 malloc()分配内存一样。为了灵活利用设备空间，Btrfs 将磁盘空间划分为多个chunk 。每个chunk可以使用不同的磁盘空间分配策略。比如某些chunk只存放metadata，某些chunk只存放数据。这种模型有很多优点，比如Btrfs支持动态添加设备。用户在系统中增加新的磁盘之后，可以使用Btrfs的命令将该设备添加到文件系统中。Btrfs把一个大的文件系统当成一个资源池，配置成多个完整的子文件系统，还可以往资源池里加新的子文件系统，而基础镜像则是子文件系统的快照，每个子镜像和容器都有自己的快照，这些快照则都是subvolume的快照。
 
 ![image](https://github.com/fanfanbj/sharing/blob/master/btfs_container_layer.jpg)
 
-Btrfs是下一代文件系统， 很多功能还在开发阶段，还没有发布正式版本，相比EXT4或其它更成熟的文件系统，它在技术方面的优势包括支持子卷、快照、文件系统内置压缩和内置RAID支持等## ZFS
+###分析
+1.	Btrfs是替换Device mapper的下一代文件系统， 很多功能还在开发阶段，还没有发布正式版本，相比EXT4或其它更成熟的文件系统，它在技术方面的优势包括丰富的特征，如：支持子卷、快照、文件系统内置压缩和内置RAID支持等。2.	不支持页缓存共享，N个容器访问相同的文件需要缓存N次。不适合高密度容器场景。3.	当前Btrfs版本使用“small writes”,导致性能问题，所以，使用Btrfs要使用Btrfs原生命令btrfs filesys show替代df4.	Btrfs使用“journaling”写数据到磁盘，这将影响顺序写的性能。5.	Btrfs文件系统会有碎片，导致性能问题。当前Btrfs版本，能通过mount时指定autodefrag 检测随机写和碎片整理。## ZFS
 ZFS 文件系统是一个革命性的全新的文件系统，它从根本上改变了文件系统的管理方式，ZFS 完全抛弃了“卷管理”，不再创建虚拟的卷，而是把所有设备集中到一个存储池中来进行管理，用“存储池”的概念来管理物理存储空间。过去，文件系统都是构建在物理设备之上的。为了管理这些物理设备，并为数据提供冗余，“卷管理”的概念提供了一个单设备的映像。而ZFS创建在虚拟的，被称为“zpools”的存储池之上。每个存储池由若干虚拟设备（virtual devices，vdevs）组成。这些虚拟设备可以是原始磁盘，也可能是一个RAID1镜像设备，或是非标准RAID等级的多磁盘组。于是zpool上的文件系统可以使用这些虚拟设备的总存储容量。
 ![image](https://github.com/fanfanbj/sharing/blob/master/zfs_zpool.jpg)
-ZFS同Btrfs类似是下一代的文件系统。ZFS在Linux(ZoL)port是成熟的，但不推荐在生产环境上使用Docker的 ZFS存储方式，除非你大量ZFS文件系统的经验。# 参考1. [Docker storage drivers in Docker.com](https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/)2. [Docker五种存储驱动原理及应用场景和性能测试对比](http://dockone.io/article/1513)
-3. [剖析Docker文件系统：Aufs与Devicemapper](http://www.infoq.com/cn/articles/analysis-of-docker-file-system-aufs-and-devicemapper/)4. [Linux 内核中的 Device Mapper 机制](https://www.ibm.com/developerworks/cn/linux/l-devmapper/)5. [Docker 环境 Storage Pool 用完解决方案：resize-device-mapper](http://segmentfault.com/a/1190000002931564)
+
+###分析1.	ZFS同 Btrfs类似是下一代文件系统。ZFS在Linux(ZoL)port是成熟的，但不推荐在生产环境上使用Docker的 ZFS存储方式，除非你大量ZFS文件系统的经验。2.	警惕ZFS内存问题，因为，ZFS最初是为了有大量内存的Sun Solaris服务器而设计 。3.	ZFS的“deduplication”特性，因为占用大量内存，推荐关掉。但如果食用SAN，NAS或者其他硬盘RAID技术，可以继续使用此特性。4.	ZFS caching特性适合高密度场景。5.	ZFS的128K块写，intent log及延迟写可以减少碎片产生。6. 和ZFS FUSE实现比较，推荐使用Linux原生ZFS驱动。 # 第四部分 总结以上是五种Docker存储方式的介绍及分析，以此为理论依据，选择自己的Docker存储方式。同时可以做一些验证测试：如IO性能测试，以此确定适合自己应用场景的存储方式。同时，有两点值得提出：1.	使用SSD(Solid State Devices)错误存储，提高性能。2.	考虑使用数据卷挂载提高性能。# 参考1. [Docker storage drivers in Docker.com](https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/)2. [Docker五种存储驱动原理及应用场景和性能测试对比](http://dockone.io/article/1513)3. [PPTV聚力传媒DCOS Docker存储方式的研究选型](http://dockone.io/article/1688)
+4. [剖析Docker文件系统：Aufs与Devicemapper](http://www.infoq.com/cn/articles/analysis-of-docker-file-system-aufs-and-devicemapper/)5. [Linux 内核中的 Device Mapper 机制](https://www.ibm.com/developerworks/cn/linux/l-devmapper/)6. [Docker 环境 Storage Pool 用完解决方案：resize-device-mapper](http://segmentfault.com/a/1190000002931564)
