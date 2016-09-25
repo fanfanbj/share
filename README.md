@@ -97,6 +97,11 @@ Docker存储方式提供管理分层镜像和Docker容器自己的可读写层�
 相比AUFS和OverlayFS是文件级存储，Device mapper是块级存储，所有的操作都是直接对块进行操作，而不是文件。Device mapper驱动会先在块设备上创建一个资源池，然后在资源池上创建一个带有文件系统的基本设备，所有镜像都是这个基本设备的快照，而容器则是镜像的快照。所以在容器里看到文件系统是资源池上基本设备的文件系统的快照，并没有为容器分配空间。当要写入一个新文件时，在容器的镜像内为其分配新的块并写入数据，这个叫用时分配。当要修改已有文件时，再使用CoW为容器快照分配块空间，将要修改的数据复制到在容器快照中新的块里再进行修改。Device mapper 驱动默认会创建一个100G的文件包含镜像和容器。每一个容器被限制在10G大小的卷内，可以自己配置调整。结构如下图所示：
 ![image](https://github.com/fanfanbj/sharing/blob/master/dm_container.jpg)
 
+可以通过"docker info"或通过dmsetup ls获取想要的更多信息。查看docker的Device mapper的信息：
+
+![image](https://github.com/fanfanbj/sharing/blob/master/dm_docker_info.png)
+
+
 ###分析1.	Device mapper文件系统兼容性比较好，并且存储为一个文件，减少了inode消耗。2.	每次一个容器写数据都是一个新块，块必须从池中分配，真正写的时候是稀松文件,虽然它的利用率很高，但性能不好，因为额外增加了vfs开销。3.	每个容器都有自己的块设备时，它们是真正的磁盘存储，所以当启动N个容器时，它都会从磁盘加载N次到内存中，消耗内存大。 4. Docker的Device mapper默认模式是loop-lvm，性能达不到生产要求。在生产环境推荐direct-lvm模式直接写原块设备，性能好。 ## OverlayFS
 Overlay是Linux内核3.18后支持的，也是一种Union FS，和AUFS的多层不同的是Overlay只有两层：一个upper文件系统和一个lower文件系统，分别代表Docker的镜像层和容器层。当需要修改一个文件时，使用CoW将文件从只读的lower复制到可写的upper进行修改，结果也保存在upper层。在Docker中，底下的只读层就是image，可写层就是Container。结构如下图所示：
 
