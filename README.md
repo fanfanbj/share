@@ -110,15 +110,14 @@ Overlay是Linux内核3.18后支持的，也是一种Union FS，和AUFS的多层�
 ###分析
 1.	从kernel3.18进入主流Linux内核。设计简单，速度快，比AUFS和Device mapper速度快。在某些情况下，也比Btrfs速度快。是Docker存储方式选择的未来。因为OverlayFS只有两层，不是多层，所以OverlayFS “copy-up”操作快于AUFS。以此可以减少操作延时。2.	OverlayFS支持页缓存共享，多个容器访问同一个文件能共享一个页缓存，以此提高内存使用率。3.	OverlayFS消耗inode，随着镜像和容器增加，inode会遇到瓶颈。Overlay2能解决这个问题。4.	在Overlay下，为了解决inode问题，可以考虑将/var/lib/docker挂在单独的文件系统上，或者增加系统inode设置。5.	有兼容性问题。open(2)只完成部分POSIX标准，OverlayFS的某些操作不符合POSIX标准。例如： 调用fd1=open("foo", O_RDONLY) ，然后调用fd2=open("foo", O_RDWR) 应用期望fd1 和fd2是同一个文件。然后由于复制操作发生在第一个open(2)操作后，所以认为是两个不同的文件。6.	不支持rename系统调用，执行“copy”和“unlink”时，将导致失败。
 ## Btrfs
-Btrfs被称为下一代写时复制文件系统，并入Linux内核，也是文件级级存储，但可以像Device mapper一直接操作底层设备。Btrfs把文件系统的一部分配置为一个完整的子文件系统，称之为subvolume 。那么采用 subvolume，一个大的文件系统可以被划分为多个子文件系统，这些子文件系统共享底层的设备空间，在需要磁盘空间时便从底层设备中分配，类似应用程序调用 malloc()分配内存一样。为了灵活利用设备空间，Btrfs 将磁盘空间划分为多个chunk 。每个chunk可以使用不同的磁盘空间分配策略。比如某些chunk只存放metadata，某些chunk只存放数据。这种模型有很多优点，比如Btrfs支持动态添加设备。用户在系统中增加新的磁盘之后，可以使用Btrfs的命令将该设备添加到文件系统中。Btrfs把一个大的文件系统当成一个资源池，配置成多个完整的子文件系统，还可以往资源池里加新的子文件系统，而基础镜像则是子文件系统的快照，每个子镜像和容器都有自己的快照，这些快照则都是subvolume的快照。
+Btrfs被称为下一代写时复制文件系统，并入Linux内核，也是文件级级存储，但可以像Device mapper一直接操作底层设备。Btrfs利用	subvolumes和snapshots管理镜像容器分层。Btrfs把文件系统的一部分配置为一个完整的子文件系统，称之为subvolume ，snapshot是subvolumn的实时读写拷贝，chunk是分配单位，通常是1GB。那么采用 subvolume，一个大的文件系统可以被划分为多个子文件系统，这些子文件系统共享底层的设备空间，在需要磁盘空间时便从底层设备中分配，类似应用程序调用 malloc()分配内存一样。为了灵活利用设备空间，Btrfs 将磁盘空间划分为多个chunk 。每个chunk可以使用不同的磁盘空间分配策略。比如某些chunk只存放metadata，某些chunk只存放数据。这种模型有很多优点，比如Btrfs支持动态添加设备。用户在系统中增加新的磁盘之后，可以使用Btrfs的命令将该设备添加到文件系统中。Btrfs把一个大的文件系统当成一个资源池，配置成多个完整的子文件系统，还可以往资源池里加新的子文件系统，而基础镜像则是子文件系统的快照，每个子镜像和容器都有自己的快照，这些快照则都是subvolume的快照。
 
 ![image](https://github.com/fanfanbj/sharing/blob/master/btfs_container_layer.jpg)
 
 ###分析
 1.	Btrfs是替换Device mapper的下一代文件系统， 很多功能还在开发阶段，还没有发布正式版本，相比EXT4或其它更成熟的文件系统，它在技术方面的优势包括丰富的特征，如：支持子卷、快照、文件系统内置压缩和内置RAID支持等。2.	不支持页缓存共享，N个容器访问相同的文件需要缓存N次。不适合高密度容器场景。3.	当前Btrfs版本使用“small writes”,导致性能问题，所以，使用Btrfs要使用Btrfs原生命令btrfs filesys show替代df4.	Btrfs使用“journaling”写数据到磁盘，这将影响顺序写的性能。5.	Btrfs文件系统会有碎片，导致性能问题。当前Btrfs版本，能通过mount时指定autodefrag 检测随机写和碎片整理。## ZFS
-ZFS 文件系统是一个革命性的全新的文件系统，它从根本上改变了文件系统的管理方式，ZFS 完全抛弃了“卷管理”，不再创建虚拟的卷，而是把所有设备集中到一个存储池中来进行管理，用“存储池”的概念来管理物理存储空间。过去，文件系统都是构建在物理设备之上的。为了管理这些物理设备，并为数据提供冗余，“卷管理”的概念提供了一个单设备的映像。而ZFS创建在虚拟的，被称为“zpools”的存储池之上。每个存储池由若干虚拟设备（virtual devices，vdevs）组成。这些虚拟设备可以是原始磁盘，也可能是一个RAID1镜像设备，或是非标准RAID等级的多磁盘组。于是zpool上的文件系统可以使用这些虚拟设备的总存储容量。下面看一下在Docker里ZFS的使用。首先从zpool里分配一个ZFS文件系统给镜像的基础层，而其他镜像层则是这个ZFS文件系统快照的克隆，快照是只读的，而克隆是可写的，当容器启动时则在镜像的最顶层生成一个可写层。如下图所示：
+ZFS 文件系统是一个革命性的全新的文件系统，它从根本上改变了文件系统的管理方式，ZFS 完全抛弃了“卷管理”，不再创建虚拟的卷，而是把所有设备集中到一个存储池中来进行管理，用“存储池”的概念来管理物理存储空间。过去，文件系统都是构建在物理设备之上的。为了管理这些物理设备，并为数据提供冗余，“卷管理”的概念提供了一个单设备的映像。而ZFS创建在虚拟的，被称为“zpools”的存储池之上。每个存储池由若干虚拟设备（virtual devices，vdevs）组成。这些虚拟设备可以是原始磁盘，也可能是一个RAID1镜像设备，或是非标准RAID等级的多磁盘组。于是zpool上的文件系统可以使用这些虚拟设备的总存储容量。Docker的ZFS利用snapshots和clones，它们是ZFS的实时拷贝，snapshots是只读的，clones是读写的，clones从snapshot创建。下面看一下在Docker里ZFS的使用。首先从zpool里分配一个ZFS文件系统给镜像的基础层，而其他镜像层则是这个ZFS文件系统快照的克隆，快照是只读的，而克隆是可写的，当容器启动时则在镜像的最顶层生成一个可写层。如下图所示：
 ![image](https://github.com/fanfanbj/sharing/blob/master/zfs_zpool.jpg)
-当要写一个新文件时，使用按需分配，一个新的数据快从zpool里生成，新的数据写入这个块，而这个新空间存于容器（ZFS的克隆）里。
 
 ###分析1.	ZFS同 Btrfs类似是下一代文件系统。ZFS在Linux(ZoL)port是成熟的，但不推荐在生产环境上使用Docker的 ZFS存储方式，除非你大量ZFS文件系统的经验。2.	警惕ZFS内存问题，因为，ZFS最初是为了有大量内存的Sun Solaris服务器而设计 。3.	ZFS的“deduplication”特性，因为占用大量内存，推荐关掉。但如果食用SAN，NAS或者其他硬盘RAID技术，可以继续使用此特性。4.	ZFS caching特性适合高密度场景。5.	ZFS的128K块写，intent log及延迟写可以减少碎片产生。6. 和ZFS FUSE实现比较，推荐使用Linux原生ZFS驱动。 # 第四部分 总结
 另外，下图列出Docker各种存储方式的优点缺点： 
