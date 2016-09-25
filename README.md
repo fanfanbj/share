@@ -120,7 +120,7 @@ ZFS 文件系统是一个革命性的全新的文件系统，它从根本上改�
 下面看一下在Docker里ZFS的使用。首先从zpool里分配一个ZFS文件系统给镜像的基础层，而其他镜像层则是这个ZFS文件系统快照的克隆，快照是只读的，而克隆是可写的，当容器启动时则在镜像的最顶层生成一个可写层。如下图所示：
 ![image](https://github.com/fanfanbj/sharing/blob/master/zfs_zpool.jpg)
 
-###分析1.	ZFS同 Btrfs类似是下一代文件系统。ZFS在Linux(ZoL)port是成熟的，但不推荐在生产环境上使用Docker的 ZFS存储方式，除非你大量ZFS文件系统的经验。2.	警惕ZFS内存问题，因为，ZFS最初是为了有大量内存的Sun Solaris服务器而设计 。3.	ZFS的“deduplication”特性，因为占用大量内存，推荐关掉。但如果食用SAN，NAS或者其他硬盘RAID技术，可以继续使用此特性。4.	ZFS caching特性适合高密度场景。5.	ZFS的128K块写，intent log及延迟写可以减少碎片产生。6. 和ZFS FUSE实现比较，推荐使用Linux原生ZFS驱动。 # 第四部分 总结
+###分析1.	ZFS同 Btrfs类似是下一代文件系统。ZFS在Linux(ZoL)port是成熟的，但不推荐在生产环境上使用Docker的 ZFS存储方式，除非你有ZFS文件系统的经验。2.	警惕ZFS内存问题，因为，ZFS最初是为了有大量内存的Sun Solaris服务器而设计 。3.	ZFS的“deduplication”特性，因为占用大量内存，推荐关掉。但如果使用SAN，NAS或者其他硬盘RAID技术，可以继续使用此特性。4.	ZFS caching特性适合高密度场景。5.	ZFS的128K块写，intent log及延迟写可以减少碎片产生。6. 和ZFS FUSE实现对比，推荐使用Linux原生ZFS驱动。 # 第四部分 总结
 另外，下图列出Docker各种存储方式的优点缺点： 
 
 ![image](https://github.com/fanfanbj/sharing/blob/master/driver-pros-cons.png)
