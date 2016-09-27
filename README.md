@@ -1,4 +1,4 @@
-#Docker存储方式研究分享
+#Docker存储方式选型建议
 # 第一部分 问题诊断事情从一次实施项目说起，我们需要帮助客户将他们的应用容器化并在数人云平台上发布此应用。客户的应用是传统WAS应用。应用是通过WAS console界面进行手工部署，暂时无法通过Dockerfile进行自动化应用部署，最后的镜像是通过Docker commit完成。镜像启动执行命令是startwas.sh,并通过tail将应用日志输出到标准输出。启动容器，WAS Server启动失败，错误日志如下：
 ![image](https://github.com/fanfanbj/sharing/blob/master/Picture1.jpg)
 
@@ -21,7 +21,7 @@ WAS Server标准日志文件startServer.log和native_stderr.log都没有更加�
 
 ![image](https://github.com/fanfanbj/sharing/blob/master/sharing-layers.jpg)
 
-Docker存储方式提供管理分层镜像和Docker容器自己的可读写层的具体实现。最初Docker仅能在支持AUFS文件系统的ubuntu发行版上运行，但是由于AUFS未能加入Linux内核，为了寻求兼容性、扩展性，Docker在内部通过graphdriver机制这种可扩展的方式来实现对不同文件系统的支持。Docker有如下几种不同的drivers：
+Docker存储方式提供管理分层镜像和容器的可读写层的具体实现。最初Docker仅能在支持AUFS文件系统的ubuntu发行版上运行，但是由于AUFS未能加入Linux内核，为了寻求兼容性、扩展性，Docker在内部通过graphdriver机制这种可扩展的方式来实现对不同文件系统的支持。Docker有如下几种不同的drivers：
 * AUFS* Device mapper* Btrfs* OverlayFS* ZFS
 # 第三部分 方案分析
 ## AUFS
