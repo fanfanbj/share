@@ -17,21 +17,37 @@ Spring Boot解决了如下问题：
 Spring Boot内嵌Servlet容器，我们可以使用java -jar proxyservice-0.0.1.jar 运行项目，或者执行项目的主程序main函数，达到快速运行。
 
 Spring Boot支持如下的Servlet容器：
+
 ![image](https://github.com/fanfanbj/share/blob/master/2/springboot1.png)
 
-SpringBoot是伴随着Spring4.0诞生，他继承了Spring框架的基因，帮助开发者快速搭建一个Web容器，做为成熟的语言或框架，他真正做到让开发者只关注在业务逻辑实现,框架的事情都由Spring和SpringBoot来完成。并且，Spring Boot只需要很少的配置，大部分的时候我们直接使用默认的配置即可。![image](https://github.com/fanfanbj/share/blob/master/2/springboot2.png)
+SpringBoot是伴随着Spring4.0诞生，他继承了Spring框架的基因，帮助开发者快速搭建一个Web容器，做为成熟的语言或框架，他真正做到让开发者只关注在业务逻辑实现,框架的事情都由Spring和SpringBoot来完成。
 
-同时，Spring Boot提供了一系列的starters来简化我们的Maven依赖，能够非常方便的进行包管理, 很大程度上减少了jar hell或者dependency hell。
 ![image](https://github.com/fanfanbj/share/blob/master/2/springboot2.png)
 
+同时，Spring Boot提供了一系列的starters来简化我们的Maven依赖，能够非常方便的进行包管理, 很大程度上减少了jar hell或者dependency hell。
+
+![image](https://github.com/fanfanbj/share/blob/master/2/springboot3.png)
+
+Spring Boot只需要很少的配置，大部分的时候我们直接使用默认的配置即可。Spring Boot会根据我们项目中类路径的jar包/类，为jar包的类进行自动配置Bean，这样一来就大大的简化了我们的配置。当然，这只是Spring考虑到的大多数的使用场景，在一些特殊情况，我们还需要自定义自动配置。
+
+同时，Spring Boot提供了基于http、ssh、telnet对运行时的项目进行监控；这个听起来是不是很炫酷！
+
+示例：以SSH登录为例
+
+1、首先，添加starter pom依赖
+
+	<dependency>
+   	 <groupId>org.springframework.boot</groupId>
+   	 <artifactId>spring-boot-starter-remote-shell</artifactId>
+	</dependency>
 
 
+2、运行项目,此时在控制台中会出现SSH访问的密码：
+![image](https://github.com/fanfanbj/share/blob/master/2/springboot4.gif)
 
+3、SSH登录到应用程序，端口为2000，用户为user：
 
-
-
-
-
+![image](https://github.com/fanfanbj/share/blob/master/2/springboot5.gif)
 
 
 ##Docker，应用容器引擎
