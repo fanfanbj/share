@@ -1,4 +1,4 @@
-#Too yong too simple
+#Too young too simple
 ##Spring Boot和Docker
 
 初想SpringBoot是做Web应用开发的，内嵌Servlet容器，是一种Web容器。Docker是以应用为单元进行封装隔离。他们的关系就好比Openstack的虚拟网络neutron和基于BGP协议的Calico虚拟网络一样，是不同层次的解决方案。（neutron是Iaas层虚拟网络的解决方案，Calico提供了容器层虚拟网络的解决方案。）Spring Boot，从字面上理解，Boot是引导的意思，他帮助Java开发者快速启动一个Web容器，是Java应用容器化的解决方案。Docker是基于LXC的应用容器引擎的应用容器化技术，标准的Docker容器包含软件组件及其依赖 。类似Calico虚拟网络解决方案可以对接到Openstack虚拟网络上，我们可以在Docker容器中部署运行Spring Boot应用。
@@ -43,11 +43,12 @@ Spring Boot只需要很少的配置，大部分的时候我们直接使用默认
 
 
 2、运行项目,此时在控制台中会出现SSH访问的密码：
-![image](https://github.com/fanfanbj/share/blob/master/2/springboot4.gif)
+
+![image](https://github.com/fanfanbj/share/blob/master/2/springboot4.png)
 
 3、SSH登录到应用程序，端口为2000，用户为user：
 
-![image](https://github.com/fanfanbj/share/blob/master/2/springboot5.gif)
+![image](https://github.com/fanfanbj/share/blob/master/2/springboot5.png)
 
 
 ##Docker，应用容器引擎
