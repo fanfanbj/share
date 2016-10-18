@@ -1,25 +1,25 @@
 #Docker存储方式选型建议
 # 第一部分 问题诊断事情从一次实施项目说起，我们需要帮助客户将他们的应用容器化并在数人云平台上发布此应用。客户的应用是传统WAS应用。应用是通过WAS console界面进行手工部署，暂时无法通过Dockerfile进行自动化应用部署，最后的镜像是通过Docker commit完成。镜像启动执行命令是startwas.sh,并通过tail将应用日志输出到标准输出。启动容器，WAS Server启动失败，错误日志如下：
-![image](https://github.com/fanfanbj/sharing/blob/master/Picture1.jpg)
+![image](https://github.com/fanfanbj/share/blob/master/1/Picture1.jpg)
 
 WAS Server标准日志文件startServer.log和native_stderr.log都没有更加详细的错误信息。最后功夫不负有心人， 在configuration目录下找到可以定位的错误信息 =_=!：
 
-![image](https://github.com/fanfanbj/sharing/blob/master/Picture2.jpg)
+![image](https://github.com/fanfanbj/share/blob/master/1/Picture2.jpg)
 
 文件访问IO异常，查看相应目录文件的属性：
 
-![image](https://github.com/fanfanbj/sharing/blob/master/Picture3.jpg)
+![image](https://github.com/fanfanbj/share/blob/master/1/Picture3.jpg)
 
 到现在为止，可以初步判断是Docker存储方式(storage drive)在镜像容器分层管理上的问题。
 当前宿主机是Centos7.2，内核3.10.0。并且查看当前宿主机信息是Docker1.12.0，存储方式是Overlay，宿主机的文件系统是xfs:
 
-![image](https://github.com/fanfanbj/sharing/blob/master/Picture4.jpg)
+![image](https://github.com/fanfanbj/share/blob/master/1/Picture4.jpg)
 
 为了验证我们的推断，我们做了如下几方面的尝试：
 尝试1: 使用数据卷挂载的方式，挂载整个washome 目录。（数据卷是Docker宿主机的目录或文件，通过mount的方式加载到容器里，不受存储驱动的控制。）重新制作镜像启动容器，WAS Server能正常启动。尝试2: 改变Docker engine的存储方式，改成Device mapper，重新拉取镜像，并启动容器，WAS Server能正常启动。那么这个问题是普遍问题吗？
 尝试3: 在其他的宿主机上，启动原镜像，这个问题是无法复现的。经过多次测试发现在相同内核、系统版本、docker版本有些机器有问题有些机器没有问题，最终发现是 Centos 提供的新文件系统 XFS 和 Overlay 兼容问题导致。同时，我们从Docker社区找到相关问题的issue报告：https://github.com/docker/docker/issues/9572 这个问题的修复在内核 4.4.6以上。综上所述，我们得到了一个结论，这个问题的根本原因是overlayFS在xfs上出现了兼容性的问题。事情的起因到此为止，下面让我们深入的看看Docker的几种存储方式，并给出一些技术选型的建议。# 第二部分 概述Docker在启动容器的时候，需要创建文件系统，为rootfs提供挂载点。最底层的引导文件系统bootfs主要包含 bootloader和kernel，bootloader主要是引导加载kernel，当kernel被加载到内存中后 bootfs就被umount了。 rootfs包含的就是典型 Linux 系统中的/dev，/proc，/bin，/etc等标准目录和文件。Docker 模型的核心部分是有效利用分层镜像机制，镜像可以通过分层来进行继承，基于基础镜像（没有父镜像），可以制作各种具体的应用镜像。Docker1.10引入新的可寻址存储模型，使用安全内容哈希代替随机的UUID管理镜像。同时，Docker提供了迁移工具，将已经存在的镜像迁移到新模型上。不同 Docker 容器就可以共享一些基础的文件系统层，同时再加上自己独有的可读写层，大大提高了存储的效率。其中主要的机制就是分层模型和将不同目录挂载到同一个虚拟文件系统。
 
-![image](https://github.com/fanfanbj/sharing/blob/master/sharing-layers.jpg)
+![image](https://github.com/fanfanbj/share/blob/master/1/sharing-layers.jpg)
 
 Docker存储方式提供管理分层镜像和容器的可读写层的具体实现。最初Docker仅能在支持AUFS文件系统的ubuntu发行版上运行，但是由于AUFS未能加入Linux内核，为了寻求兼容性、扩展性，Docker在内部通过graphdriver机制这种可扩展的方式来实现对不同文件系统的支持。Docker有如下几种不同的drivers：
 * AUFS* Device mapper* Btrfs* OverlayFS* ZFS
@@ -27,7 +27,7 @@ Docker存储方式提供管理分层镜像和容器的可读写层的具体实�
 ## AUFS
 AUFS（AnotherUnionFS）是一种Union FS，是文件级的存储驱动。所谓 UnionFS 就是把不同物理位置的目录合并 mount 到同一个目录中。简单来说就是支持将不同目录挂载到同一个虚拟文件系统下的文件系统。这种文件系统可以一层一层地叠加修改文件。无论底下有多少层都是只读的，只有最上层的文件系统是可写的。当需要修改一个文件时，AUFS创建该文件的一个副本，使用CoW将文件从只读层复制到可写层进行修改，结果也保存在可写层。在Docker中，底下的只读层就是image，可写层就是Container。结构如下图所示：
 
-![image](https://github.com/fanfanbj/sharing/blob/master/aufs_layers.jpg)
+![image](https://github.com/fanfanbj/share/blob/master/1/aufs_layers.jpg)
 ### 例子
 运行一个实例应用是删除一个文件`/etc/shadow`，看aufs的结果
 
@@ -95,35 +95,35 @@ Docker存储方式提供管理分层镜像和容器的可读写层的具体实�
 4. 在Snapshot上可以创建一个逻辑卷，这个逻辑卷在实际写操作（COW，Snapshot写操作）发生之前是不占用磁盘空间的。
 
 相比AUFS和OverlayFS是文件级存储，Device mapper是块级存储，所有的操作都是直接对块进行操作，而不是文件。Device mapper驱动会先在块设备上创建一个资源池，然后在资源池上创建一个带有文件系统的基本设备，所有镜像都是这个基本设备的快照，而容器则是镜像的快照。所以在容器里看到文件系统是资源池上基本设备的文件系统的快照，并没有为容器分配空间。当要写入一个新文件时，在容器的镜像内为其分配新的块并写入数据，这个叫用时分配。当要修改已有文件时，再使用CoW为容器快照分配块空间，将要修改的数据复制到在容器快照中新的块里再进行修改。Device mapper 驱动默认会创建一个100G的文件包含镜像和容器。每一个容器被限制在10G大小的卷内，可以自己配置调整。结构如下图所示：
-![image](https://github.com/fanfanbj/sharing/blob/master/dm_container.jpg)
+![image](https://github.com/fanfanbj/share/blob/master/1/dm_container.jpg)
 
 可以通过"docker info"或通过dmsetup ls获取想要的更多信息。查看docker的Device mapper的信息：
 
-![image](https://github.com/fanfanbj/sharing/blob/master/dm_docker_info.png)
+![image](https://github.com/fanfanbj/share/blob/master/1/dm_docker_info.png)
 
 
 ###分析1.	Device mapper文件系统兼容性比较好，并且存储为一个文件，减少了inode消耗。2.	每次一个容器写数据都是一个新块，块必须从池中分配，真正写的时候是稀松文件,虽然它的利用率很高，但性能不好，因为额外增加了vfs开销。3.	每个容器都有自己的块设备时，它们是真正的磁盘存储，所以当启动N个容器时，它都会从磁盘加载N次到内存中，消耗内存大。 4. Docker的Device mapper默认模式是loop-lvm，性能达不到生产要求。在生产环境推荐direct-lvm模式直接写原块设备，性能好。 ## OverlayFS
 Overlay是Linux内核3.18后支持的，也是一种Union FS，和AUFS的多层不同的是Overlay只有两层：一个upper文件系统和一个lower文件系统，分别代表Docker的镜像层和容器层。当需要修改一个文件时，使用CoW将文件从只读的lower复制到可写的upper进行修改，结果也保存在upper层。在Docker中，底下的只读层就是image，可写层就是Container。结构如下图所示：
 
-![image](https://github.com/fanfanbj/sharing/blob/master/overlay_constructs.jpg)
+![image](https://github.com/fanfanbj/share/blob/master/1/overlay_constructs.jpg)
 
 ###分析
 1.	从kernel3.18进入主流Linux内核。设计简单，速度快，比AUFS和Device mapper速度快。在某些情况下，也比Btrfs速度快。是Docker存储方式选择的未来。因为OverlayFS只有两层，不是多层，所以OverlayFS “copy-up”操作快于AUFS。以此可以减少操作延时。2.	OverlayFS支持页缓存共享，多个容器访问同一个文件能共享一个页缓存，以此提高内存使用率。3.	OverlayFS消耗inode，随着镜像和容器增加，inode会遇到瓶颈。Overlay2能解决这个问题。在Overlay下，为了解决inode问题，可以考虑将/var/lib/docker挂在单独的文件系统上，或者增加系统inode设置。5.	有兼容性问题。open(2)只完成部分POSIX标准，OverlayFS的某些操作不符合POSIX标准。例如： 调用fd1=open("foo", O_RDONLY) ，然后调用fd2=open("foo", O_RDWR) 应用期望fd1 和fd2是同一个文件。然后由于复制操作发生在第一个open(2)操作后，所以认为是两个不同的文件。6.	不支持rename系统调用，执行“copy”和“unlink”时，将导致失败。
 ## Btrfs
 Btrfs被称为下一代写时复制文件系统，并入Linux内核，也是文件级级存储，但可以像Device mapper一直接操作底层设备。Btrfs利用	subvolumes和snapshots管理镜像容器分层。Btrfs把文件系统的一部分配置为一个完整的子文件系统，称之为subvolume ，snapshot是subvolumn的实时读写拷贝，chunk是分配单位，通常是1GB。那么采用 subvolume，一个大的文件系统可以被划分为多个子文件系统，这些子文件系统共享底层的设备空间，在需要磁盘空间时便从底层设备中分配，类似应用程序调用 malloc()分配内存一样。为了灵活利用设备空间，Btrfs 将磁盘空间划分为多个chunk 。每个chunk可以使用不同的磁盘空间分配策略。比如某些chunk只存放metadata，某些chunk只存放数据。这种模型有很多优点，比如Btrfs支持动态添加设备。用户在系统中增加新的磁盘之后，可以使用Btrfs的命令将该设备添加到文件系统中。Btrfs把一个大的文件系统当成一个资源池，配置成多个完整的子文件系统，还可以往资源池里加新的子文件系统，而基础镜像则是子文件系统的快照，每个子镜像和容器都有自己的快照，这些快照则都是subvolume的快照。
 
-![image](https://github.com/fanfanbj/sharing/blob/master/btfs_container_layer.jpg)
+![image](https://github.com/fanfanbj/share/blob/master/1/btfs_container_layer.jpg)
 
 ###分析
 1.	Btrfs是替换Device mapper的下一代文件系统， 很多功能还在开发阶段，还没有发布正式版本，相比EXT4或其它更成熟的文件系统，它在技术方面的优势包括丰富的特征，如：支持子卷、快照、文件系统内置压缩和内置RAID支持等。2.	不支持页缓存共享，N个容器访问相同的文件需要缓存N次。不适合高密度容器场景。3.	当前Btrfs版本使用“small writes”,导致性能问题。并且需要使用Btrfs原生命令btrfs filesys show替代df4.	Btrfs使用“journaling”写数据到磁盘，这将影响顺序写的性能。5.	Btrfs文件系统会有碎片，导致性能问题。当前Btrfs版本，能通过mount时指定autodefrag 做检测随机写和碎片整理。## ZFS
 ZFS 文件系统是一个革命性的全新的文件系统，它从根本上改变了文件系统的管理方式，ZFS 完全抛弃了“卷管理”，不再创建虚拟的卷，而是把所有设备集中到一个存储池中来进行管理，用“存储池”的概念来管理物理存储空间。过去，文件系统都是构建在物理设备之上的。为了管理这些物理设备，并为数据提供冗余，“卷管理”的概念提供了一个单设备的映像。而ZFS创建在虚拟的，被称为“zpools”的存储池之上。每个存储池由若干虚拟设备（virtual devices，vdevs）组成。这些虚拟设备可以是原始磁盘，也可能是一个RAID1镜像设备，或是非标准RAID等级的多磁盘组。于是zpool上的文件系统可以使用这些虚拟设备的总存储容量。Docker的ZFS利用snapshots和clones，它们是ZFS的实时拷贝，snapshots是只读的，clones是读写的，clones从snapshot创建。
 下面看一下在Docker里ZFS的使用。首先从zpool里分配一个ZFS文件系统给镜像的基础层，而其他镜像层则是这个ZFS文件系统快照的克隆，快照是只读的，而克隆是可写的，当容器启动时则在镜像的最顶层生成一个可写层。如下图所示：
-![image](https://github.com/fanfanbj/sharing/blob/master/zfs_zpool.jpg)
+![image](https://github.com/fanfanbj/share/blob/master/1/zfs_zpool.jpg)
 
 ###分析1.	ZFS同 Btrfs类似是下一代文件系统。ZFS在Linux(ZoL)port是成熟的，但不推荐在生产环境上使用Docker的 ZFS存储方式，除非你有ZFS文件系统的经验。2.	警惕ZFS内存问题，因为，ZFS最初是为了有大量内存的Sun Solaris服务器而设计 。3.	ZFS的“deduplication”特性，因为占用大量内存，推荐关掉。但如果使用SAN，NAS或者其他硬盘RAID技术，可以继续使用此特性。4.	ZFS caching特性适合高密度场景。5.	ZFS的128K块写，intent log及延迟写可以减少碎片产生。6. 和ZFS FUSE实现对比，推荐使用Linux原生ZFS驱动。 # 第四部分 总结
 另外，下图列出Docker各种存储方式的优点缺点： 
 
-![image](https://github.com/fanfanbj/sharing/blob/master/driver-pros-cons.png)
+![image](https://github.com/fanfanbj/share/blob/master/1/driver-pros-cons.png)
 以上是五种Docker存储方式的介绍及分析，以此为理论依据，选择自己的Docker存储方式。同时可以做一些验证测试：如IO性能测试，以此确定适合自己应用场景的存储方式。同时，有两点值得提出：
 1. 	使用SSD(Solid State Devices)存储，提高性能。2.	考虑使用数据卷挂载提高性能。# 参考1. [Docker storage drivers in Docker.com](https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/)2. [Docker五种存储驱动原理及应用场景和性能测试对比](http://dockone.io/article/1513)3. [PPTV聚力传媒DCOS Docker存储方式的研究选型](http://dockone.io/article/1688)
-4. [剖析Docker文件系统：Aufs与Devicemapper](http://www.infoq.com/cn/articles/analysis-of-docker-file-system-aufs-and-devicemapper/)5. [Linux 内核中的 Device Mapper 机制](https://www.ibm.com/developerworks/cn/linux/l-devmapper/)6. [Docker 环境 Storage Pool 用完解决方案：resize-device-mapper](http://segmentfault.com/a/1190000002931564)
+4. [剖析Docker文件系统：Aufs与Devicemapper](http://www.infoq.com/cn/articles/analysis-of-docker-file-system-aufs-and-devicemapper/)5. [Linux 内核中的 Device Mapper 机制](https://www.ibm.com/developerworks/cn/linux/l-devmapper/)6. [Docker 环境 Storage Pool 用完解决方案：resize-device-mapper](http://segmentfault.com/a/1190000002931564)
