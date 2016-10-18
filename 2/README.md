@@ -11,10 +11,12 @@
 “Java要死了吗”这个问题，随着Spring Boot的出现又一次pending。Spring Boot可以说是近5年来Spring乃至整个Java社区最有影响力的项目之一。Spring cloud更是借着Spring Boot和Cloud Native的东风让整个Java生态系统又一次不甘寂寞，保持着活跃的用户群。
 回顾历史，Java做为服务端开发语言一路走来，从最初的Servlet／Jsp，到分布式架构EJB的出现，再到轻量级框架Spring。许多公司开始采用Java做为主流的语言进行企业应用开发。但Java EE使得Spring逐渐变得笨重，大量的XML配置文件存在，繁琐的配置，复杂的远程Debug，及难办的性能监控等问题。
 Spring Boot解决了如下问题：
-	1. Spring Boot使编码变简单。
-	2. Spring Boot使配置变简单。
-	3. Spring Boot使部署变简单。
-	4. Spring Boot使监控变简单。
+
+* Spring Boot使编码变简单。
+* Spring Boot使配置变简单。
+* Spring Boot使部署变简单。
+* Spring Boot使监控变简单。
+
 Spring Boot内嵌Servlet容器，我们可以使用java -jar proxyservice-0.0.1.jar 运行项目，或者执行项目的主程序main函数，达到快速运行。
 
 Spring Boot支持如下的Servlet容器：
