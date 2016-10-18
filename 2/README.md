@@ -14,7 +14,8 @@ Spring Boot解决了如下问题：
 	2. Spring Boot使配置变简单。
 	3. Spring Boot使部署变简单。
 	4. Spring Boot使监控变简单。
-Spring Boot内嵌Servlet容器，我们可以使用java -jar proxyservice-0.0.1.jar 运行项目，或者执行项目的主程序main函数，快速运行。Spring Boot支持
+Spring Boot内嵌Servlet容器，我们可以使用java -jar proxyservice-0.0.1.jar 运行项目，或者执行项目的主程序main函数，快速运行。Spring Boot支持如下的Servlet容器：
+![image](https://github.com/fanfanbj/share/blob/master/2/springboot1.png)
 
 
 
