@@ -30,7 +30,7 @@
 客户的需求或者诉求是基于他当前的认知，做为新技术创业公司，用自己的专业知识，思维，产品设计给客户“洗脑”，带给客户更先进的产品与体验。
 比如：前端总结的客户需求如下：
 1. 通过jenkins插件完成为每一个测试环境，生产环境生成对应镜像的需求。大概流程如下：
-![image](http://)
+![image](https://github.com/fanfanbj/share/blob/master/3/jenkins.jpg)
 
 2.  请基于jenkins 开发一个持续部署的功能，可以参考目前jenkins的插件 Deploy to container （建议方案： 调用目前数人云平台上的应用更新接口实现）
 
