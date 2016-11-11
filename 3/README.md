@@ -51,5 +51,5 @@ Google的配置管理在《Google SRE运维解密》中只是一笔提到了Goog
  
 在写这篇文章的时候，同事发给我普元“业务配置集中管理”的架构图。基本能反映我心目中对配置中心的设计：
 
-![image](https://github.com/fanfanbj/share/blob/master/3/puyuan.jpg)
+![image](https://github.com/fanfanbj/share/blob/master/3/puyuan.jpeg)
 
