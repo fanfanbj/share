@@ -11,13 +11,16 @@
 今年十一国庆假期前，我结束了北京银行的实施工作，在十一期间，阅读了《Go语言圣经》，《Go语言程序设计》，《VIM实用技巧》等书。我选择vim作为我的开发环境，it looks very cool. 十一后，我加入了公司Borgsphere项目组开发，正式开放工作，开发任务是负责应用管理功能增加权限认证。之后，开始了自研项目，发布工具Baker的开发工作。经历了两个月的Golang开发，完全被Golang吸引，it is a amazing。在此，分享几点心得。
 
 ###Intercepter模式
-深受Java OOP的教育多年，实现应用管理功能增加权限认证，一定会想到Intercepter模式。定义应用读权限认证拦截器和应用写权限认证拦截器。
+深受Java OOP的多年教育，实现应用管理功能增加权限认证，一定会想到Intercepter模式。定义应用读权限认证拦截器和应用写权限认证拦截器。
 ![image](https://github.com/fanfanbj/share/blob/master/5/AppWriterAuthInterceptor.png)
-
-
-
+AuthError是自定义的结构体，包括HTTP ResponseCode，内部TransactionCode：TCode，及ErrorMessage。
 ![image](https://github.com/fanfanbj/share/blob/master/5/AuthError.png)
 
 ###TDD的尝试
+定义var AppWriterAuthInterceptor = func(acc *auth.Account, application *marathon.Application) *AuthError 最初没有将函数定义为变量。但做单元测试的时候，mock对象遇到一些问题。最后想到简洁的办法是将函数定义为变量。下面是Unit-Test mock对象及一个UT的例子：
+
+![image](https://github.com/fanfanbj/share/blob/master/5/ut-1.png)
+
+![image](https://github.com/fanfanbj/share/blob/master/5/ut-2.png)
 ###Golang Web编程
 ###WorkPool/Goroutin的尝试
