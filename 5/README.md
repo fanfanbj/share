@@ -34,15 +34,14 @@ AuthError是自定义的结构体，包括HTTP ResponseCode，内部TransactionC
 我们将Unit-test的职责变成：
 
 ![image](https://github.com/fanfanbj/share/blob/master/5/ut-4.png)
+我们可以遵循下面的原则完成Unit－test，同时可以保持Agile敏捷：
+
 
 “Every class should be paired with well-designed unit test”
 
 ~~“Every class should be paired with well-designed unit test”~~
 
 “Every behavior should be paired with well-designed unit test”
-
-
-
 
 ###Golang Web编程
 ###WorkPool/Goroutin的尝试
