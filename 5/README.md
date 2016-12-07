@@ -72,7 +72,7 @@ AuthError是自定义的结构体，包括HTTP ResponseCode，内部TransactionC
 ![image](https://github.com/fanfanbj/share/blob/master/5/workpool-2.png)
 
 
-WorkPool使用了Cloud Foundry的WorkPool（https://github.com/cloudfoundry/workpool）,WorkPool结构体定义带缓冲的channel，存放func(),以此建立一种工作池的机制。WorkPool结构体如下：
+WorkPool使用了Cloud Foundry的WorkPool,WorkPool结构体中定义带缓冲的channel，存放func(),以此建立一种工作池的机制。WorkPool结构体如下：
 
 ![image](https://github.com/fanfanbj/share/blob/master/5/workpool-1.png)
 
