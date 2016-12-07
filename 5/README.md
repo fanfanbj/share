@@ -56,10 +56,25 @@ AuthError是自定义的结构体，包括HTTP ResponseCode，内部TransactionC
 
 	httputil.SetCookie(c.Writer, c.Request, "user_sess", tokenstr)
 	
-用户请求会带上Session的信息（token）,Session模块会验证token，并将用户信息加载到context上。主要代码如下：
+用户请求会带上Session的信息（token）,服务器Session模块会验证token，并将用户信息加载到context上。主要代码如下：
 
 ![image](https://github.com/fanfanbj/share/blob/master/5/web-3.png)
 
 麻雀虽小，五脏俱全的web服务器开始工作啦。
 	
-###WorkPool/Goroutin的尝试
+###试试WorkPool
+考虑到发布工具并发的考虑，发布工具baker的参考架构图如下：
+
+![image](https://github.com/fanfanbj/share/blob/master/5/baker.png)
+
+在参考架构图中，baker通过Job Executor处理请求的构建／发布Job, Executor将从context获得缓存的WorkPool，并用Sync.WaitGroup处理Work，一个Work由多个Task组成，当前task是顺序执行。并启动新goroutin collector收集work执行的状态信息。Executor的代码如下：
+
+![image](https://github.com/fanfanbj/share/blob/master/5/workpool-2.png)
+
+
+WorkPool使用了Cloud Foundry的WorkPool（https://github.com/cloudfoundry/workpool）,WorkPool结构体定义带缓冲的channel，存放func(),以此建立一种工作池的机制。WorkPool结构体如下：
+
+![image](https://github.com/fanfanbj/share/blob/master/5/workpool-1.png)
+
+
+
