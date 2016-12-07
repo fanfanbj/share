@@ -63,7 +63,7 @@ AuthError是自定义的结构体，包括HTTP ResponseCode，内部TransactionC
 麻雀虽小，五脏俱全的web服务器开始工作啦。
 	
 ###试试WorkPool
-考虑到发布工具并发的考虑，发布工具baker的参考架构图如下：
+出于发布工具并发的考虑，发布工具baker的参考架构图如下：
 
 ![image](https://github.com/fanfanbj/share/blob/master/5/image/baker.jpg)
 
