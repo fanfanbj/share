@@ -44,4 +44,22 @@ AuthError是自定义的结构体，包括HTTP ResponseCode，内部TransactionC
 “Every behavior should be paired with well-designed unit test”
 
 ###Golang Web编程
+使用Golang ginrus lib写一个Web服务器变成了一件容易的事情。首先定义router，router会定义middleware中间层逻辑，再启动web服务。代码如下：
+
+![image](https://github.com/fanfanbj/share/blob/master/5/web-1.png)
+
+在baker项目中，middleware加载UserDB到缓存，配置文件，构建工作池，并加载到http request的context上。下面的代码是初始化构建工作池bakeworkpool，并加载到context上。
+
+![image](https://github.com/fanfanbj/share/blob/master/5/web-2.png)
+
+在baker项目中对session的处理，是将登录认证用户的相关信息，如：Token，通过设置Set-cookie头将session的信息（token）传送到客户端,而客户端此后的每一次请求，都会带上这个标识符。并将用户相关信息缓存到缓存区。
+
+	httputil.SetCookie(c.Writer, c.Request, "user_sess", tokenstr)
+	
+用户请求会带上Session的信息（token）,Session模块会验证token，并将用户信息加载到context上。主要代码如下：
+
+![image](https://github.com/fanfanbj/share/blob/master/5/web-3.png)
+
+麻雀虽小，五脏俱全的web服务器开始工作啦。
+	
 ###WorkPool/Goroutin的尝试
